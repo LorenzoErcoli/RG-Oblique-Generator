@@ -6367,6 +6367,13 @@
     }
     const source = svgKind === "debug" ? state.debugSvg : state.generated;
     const clone = source.cloneNode(true);
+    // The preview viewBox is zoom-dependent (base / zoom); the width/height are the real base mm.
+    // Reset the exported viewBox to the un-zoomed base so 1 SVG unit = 1 mm — otherwise the
+    // exported drawing is scaled by whatever zoom level was active (bigger/smaller than reality).
+    if (state.baseViewBox) {
+      const b = state.baseViewBox;
+      clone.setAttribute("viewBox", `${round(b.x)} ${round(b.y)} ${round(b.width)} ${round(b.height)}`);
+    }
     if (svgKind === "completo") {
       // One production file: Level 0/1/2 + laser holes as separate groups, no travel/debug/anchors/satin.
       const keepIds = new Set(["level0", "level1", "level2", "holes"]);
