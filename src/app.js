@@ -6596,7 +6596,9 @@
   document.getElementById("testSingleModuleScale").addEventListener("click", () => {
     runSingleModuleScaleTest();
   });
-  document.querySelectorAll("[data-param]").forEach((input) => input.addEventListener("input", scheduleRender));
+  // Recalculate on "change" (Enter / leaving the field), NOT on every keystroke — otherwise
+  // a re-render mid-typing runs applyStateToControls and resets the field being edited.
+  document.querySelectorAll("[data-param]").forEach((input) => input.addEventListener("change", scheduleRender));
   document.querySelectorAll("[data-layer]").forEach((input) => input.addEventListener("change", render));
   document.getElementById("clipPreview").addEventListener("change", render);
   document.querySelectorAll("[data-export]").forEach((button) => {

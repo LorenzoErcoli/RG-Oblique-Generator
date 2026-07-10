@@ -210,7 +210,7 @@
         anchors: false, nodes: false, debugCleanup: false
       };
     </script>
-    <script src="src/app.js?v=20260710-easy21"></script>
+    <script src="src/app.js?v=20260710-easy22"></script>
     <script>
       // Glue: un unico "rientro fori" pilota gli 8 offset (fori laser + piazzamento + fissaggio)
       // in modo uniforme su tutti e 4 i lati, così condividono lo stesso rettangolo di taglio.
@@ -220,7 +220,7 @@
           "placementTopOffset", "placementRightOffset", "placementBottomOffset", "placementLeftOffset"
         ];
         const hm = document.getElementById("holesMargin");
-        hm.addEventListener("input", function () {
+        hm.addEventListener("change", function () {
           const val = Math.max(0, Number(hm.value) || 0);
           HOLE_OFFSET_IDS.forEach(function (id) {
             const el = document.getElementById(id);
@@ -228,7 +228,7 @@
           });
           // un solo dispatch: render() rilegge tutti i data-param dal DOM.
           const last = document.getElementById(HOLE_OFFSET_IDS[HOLE_OFFSET_IDS.length - 1]);
-          if (last) last.dispatchEvent(new Event("input", { bubbles: true }));
+          if (last) last.dispatchEvent(new Event("change", { bubbles: true }));
         });
       })();
 
