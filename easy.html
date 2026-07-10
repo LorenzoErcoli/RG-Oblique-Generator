@@ -405,11 +405,19 @@
           reopen.addEventListener("change", function () {
             const file = reopen.files && reopen.files[0];
             if (!file) return;
-            const dt = new DataTransfer();
-            dt.items.add(file);
-            panelInput.files = dt.files;
-            panelInput.dispatchEvent(new Event("change", { bubbles: true }));
-            reopen.value = "";
+            file.text().then(function (text) {
+              if (text.indexOf("rgProject") === -1) {
+                const status = document.getElementById("status");
+                if (status) status.textContent = "Questo SVG non contiene i parametri del progetto (export vecchio o non da qui): impossibile ripristinare il posizionamento. Riesporta il pannello per renderlo riapribile.";
+                reopen.value = "";
+                return;
+              }
+              const dt = new DataTransfer();
+              dt.items.add(file);
+              panelInput.files = dt.files;
+              panelInput.dispatchEvent(new Event("change", { bubbles: true }));
+              reopen.value = "";
+            });
           });
         }
       })();
