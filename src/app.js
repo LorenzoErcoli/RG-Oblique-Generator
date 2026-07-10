@@ -3956,6 +3956,46 @@
     return output;
   }
 
+  function segmentCrossesPolygon(a, b, polygon) {
+    for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i, i += 1) {
+      if (segmentIntersectionParam(a, b, polygon[j], polygon[i])) return true;
+    }
+    return pointInPolygon(a, polygon) && pointInPolygon(b, polygon);
+  }
+
+  // Any travel segment that would cross an empty area is rerouted AROUND the void perimeter
+  // (shorter side), so passages hug the border of the void instead of jumping across the centre.
+  function routeAroundVoids(connected, exclusions, stitch) {
+    if (!connected || !Array.isArray(connected.polylines) || !Array.isArray(exclusions) || !exclusions.length) return;
+    const s = Math.max(0.5, stitch || 3);
+    const voids = exclusions.map((exclusion) => {
+      const xs = exclusion.points.map((p) => p.x);
+      const ys = exclusion.points.map((p) => p.y);
+      return { boundary: exclusion, minX: Math.min(...xs), maxX: Math.max(...xs), minY: Math.min(...ys), maxY: Math.max(...ys) };
+    });
+    connected.polylines.forEach((polyline) => {
+      if (!polyline || !Array.isArray(polyline.points) || polyline.points.length < 2) return;
+      const pts = polyline.points;
+      const out = [pts[0]];
+      for (let i = 1; i < pts.length; i += 1) {
+        const a = pts[i - 1];
+        const b = pts[i];
+        const segMinX = Math.min(a.x, b.x), segMaxX = Math.max(a.x, b.x);
+        const segMinY = Math.min(a.y, b.y), segMaxY = Math.max(a.y, b.y);
+        const hit = voids.find((v) =>
+          !(segMaxX < v.minX || segMinX > v.maxX || segMaxY < v.minY || segMinY > v.maxY) &&
+          segmentCrossesPolygon(a, b, v.boundary.points));
+        if (hit) {
+          const around = resampleTravelPath(polygonPerimeterRoute(a, b, hit.boundary).points, s);
+          for (let k = 1; k < around.length; k += 1) out.push(around[k]);
+        } else {
+          out.push(b);
+        }
+      }
+      polyline.points = out;
+    });
+  }
+
   function cutGeneratedBorderRoute(exitPoint, reentryPoint, bounds, stitchLength, report) {
     report.cutExitReentryPairs += 1;
     report.debug.cutRouteExitPoints.push(exitPoint);
@@ -5688,6 +5728,10 @@
       routeBoundaryCutIntraDiagonal: true,
       cutBoundary: bounds
     });
+    // Reroute Level 2 travels that cross an empty area around the void perimeter.
+    if (state.params.enableExclusionAreas) {
+      routeAroundVoids(connectedLevel2, bounds.exclusions, state.params.minimumTravelStitchLength || 3);
+    }
     // Final minimum-stitch pass: no segment shorter than the global minimum survives in the
     // connected output of Level 0/1/2 (removes sub-mm points from modules and their junctions).
     const minStitch = Math.max(0, state.params.minimumSegmentLength || 0);
