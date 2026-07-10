@@ -5728,15 +5728,18 @@
           : filterPolylinesByValidHoles(rawLevel0, laserExport.validIds, laserExport.validCenters, "level0", laserReport);
       const level0 = applyModuleClipMode(level0HoleFiltered, placementBounds, state.params.level0ClipMode || "strict_clip", "level0", emptyReport());
       level0CleanupReport = level0.report;
+      const level0Polys = state.params.enableExclusionAreas ? subtractExclusions(level0.polylines, placementBounds.exclusions) : level0.polylines;
       connectedLevel0 = placementFollowsPattern
-        ? connectLayerContinuity(level0.polylines, routingBounds, "level0", placementRoutingOptions)
-        : connectTechnicalDiagonals(level0.polylines, "level0");
+        ? connectLayerContinuity(level0Polys, routingBounds, "level0", placementRoutingOptions)
+        : connectTechnicalDiagonals(level0Polys, "level0");
+      if (state.params.enableExclusionAreas) routeAroundVoids(connectedLevel0, placementBounds.exclusions, state.params.minimumTravelStitchLength || 3);
     }
     const level1HoleFiltered = !holesEnabled ? rawLevel1
       : state.params.pruneFeaturesWithoutHoles
         ? pruneLayerFeaturesByHoles(rawLevel1, laserExport.validCenters, state.params.holeMatchTolerance || 0.5)
         : filterPolylinesByValidHoles(rawLevel1, laserExport.validIds, laserExport.validCenters, "level1", laserReport);
-    const level1 = applyModuleClipMode(level1HoleFiltered, placementBounds, state.params.level1ClipMode || "strict_clip", "level1", emptyReport());
+    const level1Clip = applyModuleClipMode(level1HoleFiltered, placementBounds, state.params.level1ClipMode || "strict_clip", "level1", emptyReport());
+    const level1 = { polylines: state.params.enableExclusionAreas ? subtractExclusions(level1Clip.polylines, placementBounds.exclusions) : level1Clip.polylines, report: level1Clip.report };
     const level2Cleanup = cleanupPolylines(rawLevel2, bounds);
     const level2CutReconnect = reconnectCutFragmentsOnBoundary(level2Cleanup.polylines, bounds);
     // Empty areas inside the pattern: inner contours of the pattern colour cut out the pattern.
@@ -5763,6 +5766,7 @@
     const connectedLevel1 = placementFollowsPattern
       ? connectLayerContinuity(level1.polylines, routingBounds, "level1", placementRoutingOptions)
       : connectTechnicalDiagonals(level1.polylines, "level1");
+    if (state.params.enableExclusionAreas) routeAroundVoids(connectedLevel1, placementBounds.exclusions, state.params.minimumTravelStitchLength || 3);
     const connectedLevel2 = connectLayerContinuity(level2.polylines, routingBounds, "level2", {
       forceBorderRouting: true,
       preserveContinuousPerimeterRouting: true,
