@@ -2036,10 +2036,10 @@
       const withinPerimeter = perimeterTolerance >= 0
         ? polyline.points.every((point) => isInside(point, clipBounds, perimeterTolerance))
         : polyline.points.every((point) => isInside(point, clipBounds, 0) && distanceToBoundary(point, clipBounds) >= -perimeterTolerance);
-      // A hole is dropped if it touches a void at all (inside OR crossing its border line).
+      // A hole is dropped near a void using the SAME tolerance as the outer perimeter.
       const inExclusion = voids.some((v) =>
         !(bounds.maxX < v.minX || bounds.minX > v.maxX || bounds.maxY < v.minY || bounds.minY > v.maxY) &&
-        holeTouchesVoid(polyline.points, v.exclusion));
+        holeRemovedByVoid(polyline.points, v.exclusion, perimeterTolerance));
       if (withinPerimeter && !inExclusion) {
         report.laserHolesAccepted += 1;
         report.debug.laserHolesAccepted.push(center);
@@ -4014,15 +4014,21 @@
     return pointInPolygon(a, polygon) && pointInPolygon(b, polygon);
   }
 
-  // A hole "touches" a void if any of its points is inside the void or any of its edges
-  // crosses the void border line — then the hole is dropped (not inserted).
-  function holeTouchesVoid(points, exclusion) {
-    const poly = exclusion.points;
+  // Whether a hole must be dropped because of a void, with the SAME tolerance as the outer
+  // perimeter (mirrored). depth = how far a point is INTO the void (negative = outside).
+  //  tol > 0 : drop only if a point goes deeper than `tol` into the void (holes may dip in a bit).
+  //  tol = 0 : drop if the hole touches/enters the void at all.
+  //  tol < 0 : drop if a point is within |tol| of the void (keep a clearance around it).
+  function holeRemovedByVoid(points, exclusion, tolerance) {
     for (let i = 0; i < points.length; i += 1) {
-      if (pointInPolygon(points[i], poly)) return true;
+      const inside = isInside(points[i], exclusion, 0);
+      const d = distanceToBoundary(points[i], exclusion);
+      if ((inside ? d : -d) >= tolerance) return true;
     }
-    for (let i = 1; i < points.length; i += 1) {
-      if (segmentCrossesPolygon(points[i - 1], points[i], poly)) return true;
+    if (tolerance <= 0.001) {
+      for (let i = 1; i < points.length; i += 1) {
+        if (segmentCrossesPolygon(points[i - 1], points[i], exclusion.points)) return true;
+      }
     }
     return false;
   }
