@@ -97,6 +97,7 @@
           <label><input data-param="enableLevel0" type="checkbox" /> Enable Level 0</label>
           <label><input data-param="enableHolesLayer" type="checkbox" /> Enable laser holes</label>
           <label><input data-param="enableExclusionAreas" type="checkbox" checked /> Enable inner exclusion areas (same-colour shapes = voids)</label>
+          <label>Hole perimeter tolerance mm (negative = drop holes too close to the border)<input data-param="holePerimeterToleranceMm" type="number" step="0.5" value="2" /></label>
           <label>Laser top offset<input data-param="laserTopOffset" type="number" step="0.1" value="60" /></label>
           <label>Laser bottom offset<input data-param="laserBottomOffset" type="number" step="0.1" value="0" /></label>
           <label>Laser left offset<input data-param="laserLeftOffset" type="number" step="0.1" value="20" /></label>
@@ -283,6 +284,6 @@
         </div>
       </section>
     </main>
-    <script src="src/app.js?v=20260710-full26"></script>
+    <script src="src/app.js?v=20260710-full27"></script>
   </body>
 </html>

@@ -2029,10 +2029,13 @@
       report.laserHolesTotal += 1;
       const bounds = measurePointSets([polyline.points], { x: 0, y: 0, width: 0, height: 0 });
       const center = { x: bounds.centerX, y: bounds.centerY };
-      // Keep a hole only if it is COMPLETE (every point inside the cut perimeter) or sticks
-      // out by at most `perimeterTolerance` mm — i.e. no point is farther than that outside.
+      // Positive tolerance: keep a hole if it is complete or sticks out by at most that much.
+      // Negative tolerance: keep it only if it is at least |tolerance| INSIDE the perimeter —
+      // i.e. drop holes that get too close to the border even if they don't touch it.
       const perimeterTolerance = state.params.holePerimeterToleranceMm ?? 2;
-      const withinPerimeter = polyline.points.every((point) => isInside(point, clipBounds, perimeterTolerance));
+      const withinPerimeter = perimeterTolerance >= 0
+        ? polyline.points.every((point) => isInside(point, clipBounds, perimeterTolerance))
+        : polyline.points.every((point) => isInside(point, clipBounds, 0) && distanceToBoundary(point, clipBounds) >= -perimeterTolerance);
       // A hole is dropped if it touches a void at all (inside OR crossing its border line).
       const inExclusion = voids.some((v) =>
         !(bounds.maxX < v.minX || bounds.minX > v.maxX || bounds.maxY < v.minY || bounds.minY > v.maxY) &&
