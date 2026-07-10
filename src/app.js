@@ -2010,7 +2010,7 @@
     return measurePointSets(pointSets, { x: 0, y: 0, width: 0, height: 0 });
   }
 
-  function buildLaserExportPolylines(rawHoles, clipBounds, outerBounds, report) {
+  function buildLaserExportPolylines(rawHoles, clipBounds, outerBounds, report, voidExclusions) {
     const output = [{
       layer: "holes",
       role: "outer-object-perimeter",
@@ -2019,6 +2019,12 @@
     const validIds = new Set();
     const validCenters = [];
     const validHoles = [];
+    // Void areas that suppress holes: where there is no embroidery / placement there are no holes.
+    const voids = (Array.isArray(voidExclusions) ? voidExclusions : []).map((exclusion) => {
+      const xs = exclusion.points.map((p) => p.x);
+      const ys = exclusion.points.map((p) => p.y);
+      return { exclusion, minX: Math.min(...xs), maxX: Math.max(...xs), minY: Math.min(...ys), maxY: Math.max(...ys) };
+    });
     rawHoles.forEach((polyline) => {
       report.laserHolesTotal += 1;
       const bounds = measurePointSets([polyline.points], { x: 0, y: 0, width: 0, height: 0 });
@@ -2027,10 +2033,10 @@
       // out by at most `perimeterTolerance` mm — i.e. no point is farther than that outside.
       const perimeterTolerance = state.params.holePerimeterToleranceMm ?? 2;
       const withinPerimeter = polyline.points.every((point) => isInside(point, clipBounds, perimeterTolerance));
-      // Exclusion areas (inner contours of the reference, e.g. a circle inside the rectangle):
-      // no holes inside them — a hole is excluded if any point is more than the tolerance inside one.
-      const inExclusion = state.params.enableExclusionAreas && Array.isArray(clipBounds.exclusions) && clipBounds.exclusions.some((exclusion) =>
-        polyline.points.some((point) => isInside(point, exclusion, -perimeterTolerance)));
+      // A hole is dropped if it touches a void at all (inside OR crossing its border line).
+      const inExclusion = voids.some((v) =>
+        !(bounds.maxX < v.minX || bounds.minX > v.maxX || bounds.maxY < v.minY || bounds.minY > v.maxY) &&
+        holeTouchesVoid(polyline.points, v.exclusion));
       if (withinPerimeter && !inExclusion) {
         report.laserHolesAccepted += 1;
         report.debug.laserHolesAccepted.push(center);
@@ -4005,6 +4011,19 @@
     return pointInPolygon(a, polygon) && pointInPolygon(b, polygon);
   }
 
+  // A hole "touches" a void if any of its points is inside the void or any of its edges
+  // crosses the void border line — then the hole is dropped (not inserted).
+  function holeTouchesVoid(points, exclusion) {
+    const poly = exclusion.points;
+    for (let i = 0; i < points.length; i += 1) {
+      if (pointInPolygon(points[i], poly)) return true;
+    }
+    for (let i = 1; i < points.length; i += 1) {
+      if (segmentCrossesPolygon(points[i - 1], points[i], poly)) return true;
+    }
+    return false;
+  }
+
   // Any travel segment that would cross an empty area is rerouted AROUND the void perimeter
   // (shorter side), so passages hug the border of the void instead of jumping across the centre.
   function routeAroundVoids(connected, exclusions, stitch) {
@@ -5706,8 +5725,13 @@
     const displaySatinBounds = translateBoundary(satinBounds, borderReferenceDx, borderReferenceDy, satinBounds.name);
     const displayCordBounds = translateBoundary(cordBounds, borderReferenceDx, borderReferenceDy, cordBounds.name);
     const laserReport = emptyReport();
+    // Holes are suppressed by their own reference voids AND by the pattern voids
+    // (where there is no embroidery there are no holes).
+    const holeVoids = state.params.enableExclusionAreas
+      ? [...(laserBounds.exclusions || []), ...(bounds.exclusions || []), ...(placementBounds.exclusions || [])]
+      : [];
     const laserExport = holesEnabled
-      ? buildLaserExportPolylines(rawHoles, laserBounds, patternBounds, laserReport)
+      ? buildLaserExportPolylines(rawHoles, laserBounds, patternBounds, laserReport, holeVoids)
       : { polylines: [], validIds: new Set(), validCenters: [], validHoles: [] };
     // Global rule: if placement/fixing share the pattern's perimeter selection, route them
     // like the pattern (continuous perimeter travel between diagonals); otherwise per-diagonal.
