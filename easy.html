@@ -83,6 +83,8 @@
           <p class="easy-hint">Piazzamento/fissaggio: dove manca il foro rimuove il cerchio (L0) / lo zig-zag (L1) ma mantiene le passate che corrono sotto il pattern.</p>
           <label>Tolleranza foro dal perimetro (mm)<input data-param="holePerimeterToleranceMm" type="number" step="0.5" min="0" value="2" /></label>
           <p class="easy-hint">Il foro resta solo se è completo (tutto dentro il perimetro) o sporge al massimo di questa distanza. Se una parte esce di più, viene tolto.</p>
+          <label class="inline"><input data-param="enableExclusionAreas" type="checkbox" /> Aree di esclusione interne (forme dentro = zone vuote)</label>
+          <p class="easy-hint">Se attivo, una forma più piccola dello stesso colore dentro il perimetro crea una zona vuota (senza fori per il colore Fori, senza pattern per il colore Pattern).</p>
         </section>
 
         <section>
@@ -208,7 +210,7 @@
         anchors: false, nodes: false, debugCleanup: false
       };
     </script>
-    <script src="src/app.js?v=20260710-easy20"></script>
+    <script src="src/app.js?v=20260710-easy21"></script>
     <script>
       // Glue: un unico "rientro fori" pilota gli 8 offset (fori laser + piazzamento + fissaggio)
       // in modo uniforme su tutti e 4 i lati, così condividono lo stesso rettangolo di taglio.

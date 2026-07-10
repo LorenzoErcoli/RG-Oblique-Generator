@@ -91,6 +91,7 @@
     level1ClipMode: "keep_module_if_intersects",
     pruneFeaturesWithoutHoles: false,
     holePerimeterToleranceMm: 2,
+    enableExclusionAreas: true,
     startLockEnabled: false,
     startLockStitchMm: 3,
     level0HoleStitchLength: 2,
@@ -2028,7 +2029,7 @@
       const withinPerimeter = polyline.points.every((point) => isInside(point, clipBounds, perimeterTolerance));
       // Exclusion areas (inner contours of the reference, e.g. a circle inside the rectangle):
       // no holes inside them — a hole is excluded if any point is more than the tolerance inside one.
-      const inExclusion = Array.isArray(clipBounds.exclusions) && clipBounds.exclusions.some((exclusion) =>
+      const inExclusion = state.params.enableExclusionAreas && Array.isArray(clipBounds.exclusions) && clipBounds.exclusions.some((exclusion) =>
         polyline.points.some((point) => isInside(point, exclusion, -perimeterTolerance)));
       if (withinPerimeter && !inExclusion) {
         report.laserHolesAccepted += 1;
@@ -5657,7 +5658,9 @@
     const level2Cleanup = cleanupPolylines(rawLevel2, bounds);
     const level2CutReconnect = reconnectCutFragmentsOnBoundary(level2Cleanup.polylines, bounds);
     // Empty areas inside the pattern: inner contours of the pattern colour cut out the pattern.
-    const level2WithVoids = subtractExclusions(level2CutReconnect.polylines, bounds.exclusions);
+    const level2WithVoids = state.params.enableExclusionAreas
+      ? subtractExclusions(level2CutReconnect.polylines, bounds.exclusions)
+      : level2CutReconnect.polylines;
     const level2 = { polylines: level2WithVoids, report: level2Cleanup.report };
     let coverageMap = null;
     const needsCoveragePreview = state.params.coverageMaskPreview || state.layers.debugCoverageMask || state.layers.debugCoverageMap || state.layers.debugCoveredTravelOptimizer;
