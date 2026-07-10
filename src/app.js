@@ -3938,19 +3938,61 @@
   // same colour), splitting each polyline so the pattern is interrupted there = empty area.
   function subtractExclusions(polylines, exclusions) {
     if (!Array.isArray(exclusions) || !exclusions.length) return polylines;
-    const output = [];
-    polylines.forEach((polyline) => {
-      if (!polyline || !Array.isArray(polyline.points)) return;
-      let run = [];
-      polyline.points.forEach((point) => {
-        const inside = exclusions.some((exclusion) => isInside(point, exclusion, 0));
-        if (inside) {
-          if (run.length > 1) output.push({ ...polyline, points: run });
-          run = [];
-        } else {
-          run.push(point);
+    // Precise clip against the void boundary (like the outer-boundary cut): where a segment
+    // crosses a void edge, cut it exactly at the intersection so the pattern ends on the border.
+    const voids = exclusions.map((exclusion) => {
+      const xs = exclusion.points.map((p) => p.x);
+      const ys = exclusion.points.map((p) => p.y);
+      return { exclusion, minX: Math.min(...xs), maxX: Math.max(...xs), minY: Math.min(...ys), maxY: Math.max(...ys) };
+    });
+    const insideAny = (p) => voids.some((v) =>
+      p.x >= v.minX && p.x <= v.maxX && p.y >= v.minY && p.y <= v.maxY && isInside(p, v.exclusion, 0));
+    const hitsOf = (a, b) => {
+      const hits = [];
+      const segMinX = Math.min(a.x, b.x), segMaxX = Math.max(a.x, b.x);
+      const segMinY = Math.min(a.y, b.y), segMaxY = Math.max(a.y, b.y);
+      voids.forEach((v) => {
+        if (segMaxX < v.minX || segMinX > v.maxX || segMaxY < v.minY || segMinY > v.maxY) return;
+        const poly = v.exclusion.points;
+        for (let i = 0, j = poly.length - 1; i < poly.length; j = i, i += 1) {
+          const r = segmentIntersectionParam(a, b, poly[j], poly[i]);
+          if (r) hits.push({ t: r.t, point: r.point });
         }
       });
+      hits.sort((x, y) => x.t - y.t);
+      return hits;
+    };
+    const output = [];
+    polylines.forEach((polyline) => {
+      if (!polyline || !Array.isArray(polyline.points) || polyline.points.length < 2) return;
+      const pts = polyline.points;
+      let run = [];
+      let prevInside = insideAny(pts[0]);
+      if (!prevInside) run.push(pts[0]);
+      for (let i = 1; i < pts.length; i += 1) {
+        const a = pts[i - 1];
+        const b = pts[i];
+        const bInside = insideAny(b);
+        if (!prevInside && !bInside) {
+          const hits = hitsOf(a, b);
+          if (hits.length >= 2) {
+            run.push(hits[0].point);
+            if (run.length > 1) output.push({ ...polyline, points: run });
+            run = [hits[hits.length - 1].point, b];
+          } else {
+            run.push(b);
+          }
+        } else if (!prevInside && bInside) {
+          const hits = hitsOf(a, b);
+          if (hits.length) run.push(hits[0].point);
+          if (run.length > 1) output.push({ ...polyline, points: run });
+          run = [];
+        } else if (prevInside && !bInside) {
+          const hits = hitsOf(a, b);
+          run = hits.length ? [hits[hits.length - 1].point, b] : [b];
+        }
+        prevInside = bInside;
+      }
       if (run.length > 1) output.push({ ...polyline, points: run });
     });
     return output;
