@@ -1,0 +1,38 @@
+/* RG Design System v0.1.0 — keep synchronized with tokens.json. */
+:root {
+  --rg-font-identity: AGNext, Arial, sans-serif;
+  --rg-font-body: GT-America-Standard, Helvetica, Arial, sans-serif;
+  --rg-font-mono: GT-America-Mono, Consolas, monospace;
+  --rg-font-size-xs: 12px; --rg-font-size-sm: 14px; --rg-font-size-md: 16px;
+  --rg-font-size-lg: 20px; --rg-font-size-xl: 28px; --rg-font-size-2xl: 36px; --rg-font-size-display: 48px;
+  --rg-line-height-tight: 1.1; --rg-line-height-heading: 1.2; --rg-line-height-body: 1.5; --rg-line-height-technical: 1.4;
+  --rg-weight-regular: 400; --rg-weight-medium: 500; --rg-weight-bold: 700;
+  --rg-letter-tight: -0.02em; --rg-letter-normal: 0; --rg-letter-label: 0.04em;
+
+  --rg-color-black: #000000; --rg-color-white: #ffffff;
+  --rg-color-neutral-50: #f7f7f5; --rg-color-neutral-100: #efefec; --rg-color-neutral-200: #dededa;
+  --rg-color-neutral-400: #9a9a94; --rg-color-neutral-600: #62625d; --rg-color-neutral-800: #282826;
+  /* Perugino: placeholder da ricampionare dal PDF/Figma ufficiale. */
+  --rg-color-perugino-sage: #89958a; --rg-color-perugino-powder-blue: #aabcc7;
+  --rg-color-perugino-light-gray: #d7d7d1; --rg-color-perugino-sand-ochre: #b79a62;
+
+  --rg-color-background: var(--rg-color-white); --rg-color-surface: var(--rg-color-neutral-50);
+  --rg-color-text-primary: var(--rg-color-black); --rg-color-text-secondary: var(--rg-color-neutral-600);
+  --rg-color-border: var(--rg-color-neutral-200); --rg-color-border-strong: var(--rg-color-black);
+  --rg-color-action-primary: var(--rg-color-black); --rg-color-action-primary-text: var(--rg-color-white);
+  --rg-color-action-secondary: var(--rg-color-white); --rg-color-focus: var(--rg-color-black);
+  --rg-color-success: #365c45; --rg-color-warning: #7a5a16; --rg-color-danger: #8a2e2e; --rg-color-info: #36596b;
+  --rg-color-accent-sage: var(--rg-color-perugino-sage); --rg-color-accent-blue: var(--rg-color-perugino-powder-blue);
+  --rg-color-accent-sand: var(--rg-color-perugino-sand-ochre);
+
+  --rg-space-0: 0; --rg-space-1: 4px; --rg-space-2: 8px; --rg-space-3: 12px; --rg-space-4: 16px;
+  --rg-space-6: 24px; --rg-space-8: 32px; --rg-space-12: 48px; --rg-space-16: 64px; --rg-space-24: 96px;
+  --rg-radius-none: 0; --rg-radius-sm: 2px; --rg-radius-md: 4px; --rg-radius-lg: 8px; --rg-radius-pill: 999px;
+  --rg-border-hairline: 1px; --rg-border-strong: 2px; --rg-border-style: solid;
+  --rg-shadow-none: none; --rg-shadow-overlay: 0 8px 24px rgba(0, 0, 0, 0.1);
+  --rg-layout-content-max: 1440px; --rg-layout-reading-max: 720px; --rg-layout-sidebar: 280px;
+  --rg-layout-header: 64px; --rg-layout-grid-gap: 24px;
+  --rg-z-base: 0; --rg-z-sticky: 100; --rg-z-dropdown: 200; --rg-z-overlay: 300; --rg-z-modal: 400; --rg-z-toast: 500;
+  --rg-motion-fast: 120ms; --rg-motion-normal: 200ms; --rg-motion-easing: cubic-bezier(0.2, 0, 0, 1);
+}
+

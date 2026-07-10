@@ -1,0 +1,416 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>RG Oblique — Modalità semplice</title>
+    <link rel="stylesheet" href="src/design-system/tokens.css" />
+    <link rel="stylesheet" href="src/design-system/styles/rg-core.css" />
+    <link rel="stylesheet" href="src/design-system/styles/rg-typography.css" />
+    <link rel="stylesheet" href="src/design-system/styles/rg-components.css" />
+    <link rel="stylesheet" href="src/design-system/styles/rg-layout.css" />
+    <link rel="stylesheet" href="src/design-system/styles/rg-utilities.css" />
+    <link rel="stylesheet" href="src/viewer/styles.css?v=20260706-easy" />
+    <style>
+      .easy-panel { display: flex; flex-direction: column; gap: 18px; }
+      .easy-panel section { border: 1px solid rgba(0,0,0,0.08); border-radius: 10px; padding: 12px 14px; }
+      .easy-panel h2 { margin: 0 0 10px; font-size: 13px; letter-spacing: 0.04em; text-transform: uppercase; opacity: 0.75; }
+      .easy-row { display: flex; gap: 10px; }
+      .easy-row > label { flex: 1; }
+      .easy-panel label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; margin-bottom: 8px; }
+      .easy-panel label.inline { flex-direction: row; align-items: center; gap: 8px; }
+      .easy-panel input[type="number"], .easy-panel input[type="file"], .easy-panel select { width: 100%; box-sizing: border-box; }
+      .nudge-pad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; max-width: 200px; }
+      .nudge-pad button { padding: 8px 0; }
+      .nudge-pad .up { grid-column: 2; }
+      .nudge-pad .left { grid-column: 1; grid-row: 2; }
+      .nudge-pad .right { grid-column: 3; grid-row: 2; }
+      .nudge-pad .down { grid-column: 2; grid-row: 3; }
+      .easy-export { width: 100%; padding: 14px; font-weight: 600; font-size: 15px; }
+      .easy-hidden { position: absolute; width: 0; height: 0; overflow: hidden; opacity: 0; pointer-events: none; }
+      .easy-hint { font-size: 12px; opacity: 0.6; margin-top: -4px; }
+      .rg-dd { position: relative; }
+      .rg-dd-btn { width: 100%; box-sizing: border-box; display: flex; align-items: center; gap: 8px; text-align: left; padding: 8px 10px; border: 1px solid rgba(0,0,0,0.2); border-radius: 8px; background: #fff; cursor: pointer; font-size: 13px; min-height: 40px; }
+      .rg-dd-btn .rg-dd-label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .rg-dd-btn::after { content: "▾"; opacity: 0.5; }
+      .rg-dd-menu { display: none; position: absolute; z-index: 30; left: 0; right: 0; top: calc(100% + 3px); background: #fff; border: 1px solid rgba(0,0,0,0.15); border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.18); max-height: 240px; overflow: auto; padding: 4px; }
+      .rg-dd.open .rg-dd-menu { display: block; }
+      .rg-dd-opt { width: 100%; box-sizing: border-box; display: flex; align-items: center; gap: 8px; padding: 7px 8px; background: none; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; text-align: left; }
+      .rg-dd-opt:hover { background: rgba(0,0,0,0.06); }
+      .rg-dd-opt[aria-selected="true"] { background: rgba(0,0,0,0.08); font-weight: 600; }
+      .rg-dd-sw { width: 18px; height: 18px; border-radius: 4px; border: 1px solid rgba(0,0,0,0.25); flex: 0 0 auto; }
+      .rg-dd-sw.empty { background: repeating-conic-gradient(#cfcfcf 0% 25%, #fff 0% 50%) 50% / 8px 8px; }
+      .easy-acc { border: 1px solid rgba(0,0,0,0.08); border-radius: 10px; padding: 0 14px; }
+      .easy-acc > summary { cursor: pointer; padding: 12px 0; font-size: 13px; letter-spacing: 0.04em; text-transform: uppercase; opacity: 0.75; list-style: none; }
+      .easy-acc > summary::-webkit-details-marker { display: none; }
+      .easy-acc > summary::after { content: " ▾"; opacity: 0.5; }
+      .easy-acc[open] > summary { border-bottom: 1px solid rgba(0,0,0,0.06); margin-bottom: 10px; }
+      .easy-acc[open] > summary::after { content: " ▴"; }
+      .easy-acc label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; margin-bottom: 8px; }
+      .easy-acc input[type="number"] { width: 100%; box-sizing: border-box; }
+      .easy-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.45); display: flex; align-items: center; justify-content: center; z-index: 100; }
+      .easy-modal[hidden] { display: none; }
+      .easy-modal-box { background: #fff; color: #111; border-radius: 12px; padding: 20px; width: min(420px, 92vw); box-shadow: 0 20px 60px rgba(0,0,0,0.35); }
+      .easy-modal-box h2 { margin: 0 0 12px; font-size: 16px; }
+      .easy-modal-box label { display: flex; flex-direction: column; gap: 6px; font-size: 13px; }
+      .easy-modal-box input[type="text"] { width: 100%; box-sizing: border-box; padding: 9px 10px; border: 1px solid rgba(0,0,0,0.25); border-radius: 8px; font-size: 14px; }
+      .easy-modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 16px; }
+      .easy-modal-actions button { padding: 9px 16px; }
+    </style>
+  </head>
+  <body>
+    <main class="app-shell">
+      <aside class="panel easy-panel">
+        <header>
+          <h1>RG Oblique</h1>
+          <p>Modalità semplice</p>
+        </header>
+
+        <section>
+          <h2>Cartamodello</h2>
+          <label>Carica sagoma pannello (DXF o SVG)
+            <input id="panelInput" type="file" accept=".svg,.dxf,image/svg+xml" />
+          </label>
+          <label class="inline"><input data-param="showPanelShapeOverlay" type="checkbox" /> Mostra cartamodello</label>
+          <label class="inline">Colore anteprima cartamodello <input data-param="panelShapeOverlayColor" type="color" value="#e52421" /></label>
+          <h2 style="margin-top:14px;">Colori taglio (ruoli)</h2>
+          <label>Pannello <span class="easy-hint">(anche passaggi pattern)</span><div class="rg-dd" id="rolePanel"></div></label>
+          <label>Pattern<div class="rg-dd" id="rolePattern"></div></label>
+          <label>Fori<div class="rg-dd" id="roleHoles"></div></label>
+          <label>Piazzamento e fissaggio<div class="rg-dd" id="rolePlacement"></div></label>
+          <p class="easy-hint">Assegna i colori del cartamodello ai tagli. Se non assegni un colore valgono i rientri a margine. Se dai a "Piazzamento e fissaggio" lo stesso colore del Pattern, questi seguono il perimetro come il pattern (passaggi continui tra le diagonali).</p>
+          <label class="inline"><input data-param="pruneFeaturesWithoutHoles" type="checkbox" /> Cerchi/zig-zag solo dove c'è il foro (tieni le passate)</label>
+          <p class="easy-hint">Piazzamento/fissaggio: dove manca il foro rimuove il cerchio (L0) / lo zig-zag (L1) ma mantiene le passate che corrono sotto il pattern.</p>
+          <label>Tolleranza foro dal perimetro (mm)<input data-param="holePerimeterToleranceMm" type="number" step="0.5" min="0" value="2" /></label>
+          <p class="easy-hint">Il foro resta solo se è completo (tutto dentro il perimetro) o sporge al massimo di questa distanza. Se una parte esce di più, viene tolto.</p>
+        </section>
+
+        <section>
+          <h2>Misure e rientri (mm)</h2>
+          <div class="easy-row">
+            <label>Pannello larghezza<input data-param="formatWidth" type="number" step="1" min="1" /></label>
+            <label>Pannello altezza<input data-param="formatHeight" type="number" step="1" min="1" /></label>
+          </div>
+          <label>Rientro taglio pattern<input data-param="patternBorderOffset" type="number" step="0.5" min="0" value="0" /></label>
+          <label>Rientro taglio fori (+ piazz./fissaggio)<input id="holesMargin" type="number" step="0.5" min="0" value="0" /></label>
+          <p class="easy-hint">Il rettangolo entro cui si realizza il pattern e quello dei fori/piazzamento/fissaggio, come rientro dal bordo del pannello. Simula il taglio che poi definisci col DXF/SVG a colori.</p>
+        </section>
+
+        <details class="easy-acc">
+          <summary>Punti minimi</summary>
+          <label>Punto minimo globale (mm)<input data-param="minimumSegmentLength" type="number" step="0.1" min="0" /></label>
+          <label>Punto minimo pulizia bordi (mm)<input data-param="cutBorderStitchLength" type="number" step="0.1" min="0" /></label>
+          <p class="easy-hint">Globale: nessun punto sotto questa lunghezza in tutto il ricamo (L0/L1/L2). Bordi: lunghezza dei punti nei passaggi di taglio/perimetro. Valori più bassi = più punti/dettaglio.</p>
+          <label class="inline"><input data-param="startLockEnabled" type="checkbox" /> Partenza dal bordo (scarico filo)</label>
+          <label>Punto partenza/ingresso (mm)<input data-param="startLockStitchMm" type="number" step="0.5" min="0.5" /></label>
+          <p class="easy-hint">Ogni tratto di L0/L1/L2 parte dal bordo con 3 punti verticali (ancoraggio filo), poi entra con un passaggio a questa lunghezza, poi inizia il ricamo.</p>
+        </details>
+
+        <section>
+          <h2>Posizione pattern</h2>
+          <div class="easy-row">
+            <label>Offset X (mm)<input data-param="globalPatternOffsetX" type="number" step="0.1" /></label>
+            <label>Offset Y (mm)<input data-param="globalPatternOffsetY" type="number" step="0.1" /></label>
+          </div>
+          <label>Passo spostamento (mm)<input data-param="nudgeStep" type="number" step="0.1" value="1" /></label>
+          <div class="nudge-pad">
+            <button class="up" data-nudge="0,-1" type="button">↑</button>
+            <button class="left" data-nudge="-1,0" type="button">←</button>
+            <button class="right" data-nudge="1,0" type="button">→</button>
+            <button class="down" data-nudge="0,1" type="button">↓</button>
+          </div>
+        </section>
+
+        <section>
+          <h2>Livelli visibili</h2>
+          <label class="inline"><input data-layer="level0" type="checkbox" /> Piazzamento (Level 0)</label>
+          <label class="inline"><input data-layer="level1" type="checkbox" /> Fissaggio (Level 1)</label>
+          <label class="inline"><input data-layer="level2" type="checkbox" /> Ricamo oblique (Level 2)</label>
+          <label class="inline"><input data-layer="holes" type="checkbox" /> Fori laser (Level 4)</label>
+          <label class="inline"><input data-layer="travel" type="checkbox" /> Passaggi ricalcolati (verifica)</label>
+          <label class="inline"><input data-layer="boundary" type="checkbox" /> Rettangoli cartamodello</label>
+        </section>
+
+        <section>
+          <h2>Progetto</h2>
+          <button class="easy-export" data-export="completo" type="button">Esporta tutto (SVG)</button>
+          <p class="easy-hint">Un unico file con Piazzamento, Fissaggio, Oblique e Fori laser come gruppi separati. Contiene anche i parametri, così può essere riaperto.</p>
+          <label>Riapri progetto salvato (SVG)<input id="reopenProject" type="file" accept=".svg,image/svg+xml" /></label>
+          <p class="easy-hint">Carica un SVG esportato da qui: ripristina parametri, cartamodello e colori.</p>
+          <button id="generate" type="button">Rigenera anteprima</button>
+        </section>
+      </aside>
+
+      <section class="workspace">
+        <div class="toolbar">
+          <span id="status">Caricamento…</span>
+        </div>
+        <div id="viewport" class="viewport">
+          <svg id="preview" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"></svg>
+        </div>
+      </section>
+    </main>
+
+    <!-- Scheletro nascosto: elementi richiesti da app.js (non modificarne gli id) + input scala pilotati dalla glue mm. -->
+    <div class="easy-hidden" aria-hidden="true">
+      <button id="loadExamples" type="button"></button>
+      <button id="showRawImportedSvg" type="button"></button>
+      <button id="testSingleModuleScale" type="button"></button>
+      <input id="projectInput" type="file" />
+      <input id="level0Input" type="file" />
+      <input id="level1Input" type="file" />
+      <input id="level2Input" type="file" />
+      <input id="holesInput" type="file" />
+      <select id="rawImportSource"><option value="panel">panel</option></select>
+      <input id="clipPreview" type="checkbox" checked />
+      <div id="templateLayerPanel"></div>
+      <div id="cleanupStats"></div>
+      <input id="laserTopOffset" data-param="laserTopOffset" type="number" value="0" />
+      <input id="laserRightOffset" data-param="laserRightOffset" type="number" value="0" />
+      <input id="laserBottomOffset" data-param="laserBottomOffset" type="number" value="0" />
+      <input id="laserLeftOffset" data-param="laserLeftOffset" type="number" value="0" />
+      <input id="placementTopOffset" data-param="placementTopOffset" type="number" value="0" />
+      <input id="placementRightOffset" data-param="placementRightOffset" type="number" value="0" />
+      <input id="placementBottomOffset" data-param="placementBottomOffset" type="number" value="0" />
+      <input id="placementLeftOffset" data-param="placementLeftOffset" type="number" value="0" />
+    </div>
+
+    <script>
+      // Default della modalità semplice (letti da app.js prima di applyStateToControls).
+      window.RG_PARAM_OVERRIDES = {
+        autoFillDiagonals: true,
+        autoModulesPerDiagonal: true,
+        enableLevel0: true,
+        enableHolesLayer: true,
+        level0Mode: "module",
+        enableZigZagBorder: false,
+        coverageMaskPreview: false,
+        // L0/L1 tagliati al loro perimetro di riferimento come L2 (niente parti in eccesso fuori).
+        level0ClipMode: "strict_clip",
+        level1ClipMode: "strict_clip",
+        // Partenza dal bordo con scarico filo (3 punti verticali + ingresso).
+        startLockEnabled: true,
+        showPanelShapeOverlay: true,
+        panelShapeOverlayUseOriginalColors: false,
+        // Pattern e moduli restano 1:1 (il pattern non si scala, si sposta soltanto).
+        moduleScale: 1, level0Scale: 1, level2Scale: 1, holesScale: 1,
+        // Rettangolo pattern = pannello meno il rientro uniforme (patternBorderOffset);
+        // il pannello base non ha rientri propri.
+        patternTopOffset: 0, patternRightOffset: 0, patternBottomOffset: 0, patternLeftOffset: 0,
+        patternBorderOffset: 0,
+        // Rettangolo fori + piazzamento/fissaggio: rientro uniforme dal pannello (pilotato dalla glue).
+        laserTopOffset: 0, laserRightOffset: 0, laserBottomOffset: 0, laserLeftOffset: 0,
+        placementTopOffset: 0, placementRightOffset: 0, placementBottomOffset: 0, placementLeftOffset: 0
+      };
+      window.RG_LAYER_OVERRIDES = {
+        level0: true, level1: true, level2: true, holes: true,
+        travel: false, boundary: false, satin: false, borderPreview: false,
+        anchors: false, nodes: false, debugCleanup: false
+      };
+    </script>
+    <script src="src/app.js?v=20260709-easy17"></script>
+    <script>
+      // Glue: un unico "rientro fori" pilota gli 8 offset (fori laser + piazzamento + fissaggio)
+      // in modo uniforme su tutti e 4 i lati, così condividono lo stesso rettangolo di taglio.
+      (function () {
+        const HOLE_OFFSET_IDS = [
+          "laserTopOffset", "laserRightOffset", "laserBottomOffset", "laserLeftOffset",
+          "placementTopOffset", "placementRightOffset", "placementBottomOffset", "placementLeftOffset"
+        ];
+        const hm = document.getElementById("holesMargin");
+        hm.addEventListener("input", function () {
+          const val = Math.max(0, Number(hm.value) || 0);
+          HOLE_OFFSET_IDS.forEach(function (id) {
+            const el = document.getElementById(id);
+            if (el) el.value = String(val);
+          });
+          // un solo dispatch: render() rilegge tutti i data-param dal DOM.
+          const last = document.getElementById(HOLE_OFFSET_IDS[HOLE_OFFSET_IDS.length - 1]);
+          if (last) last.dispatchEvent(new Event("input", { bubbles: true }));
+        });
+      })();
+
+      // Glue: 3 dropdown custom con swatch di colore. Opzioni = solo colori UNICI del cartamodello
+      // (i path/duplicati sono grafica di centratura, non selezionabili). "Fori..." pilota LASER + PLACEMENT.
+      (function () {
+        const ROLE_MAP = {
+          rolePanel: ["MASTER_OUTLINE"],
+          rolePattern: ["PATTERN_REFERENCE"],
+          roleHoles: ["LASER_REFERENCE"],
+          rolePlacement: ["PLACEMENT_REFERENCE"]
+        };
+        const AUTO = { value: "", color: "unknown", name: "Auto (usa i rientri)" };
+
+        // Solo colori unici; scarta path:/layer: e i doppioni di colore.
+        function selectableOptions() {
+          const raw = window.__rgTemplateOptions || [];
+          const seen = new Set();
+          const uniq = [];
+          raw.forEach(function (o) {
+            if (!o || typeof o.value !== "string") return;
+            if (o.value.indexOf("color:") !== 0) return;      // solo gruppi-colore
+            const key = (o.color || o.value).toLowerCase();
+            if (seen.has(key)) return;
+            seen.add(key);
+            uniq.push(o);
+          });
+          if (!uniq.length) {                                  // fallback: qualsiasi opzione con colore, deduplicata
+            raw.forEach(function (o) {
+              if (!o || !o.value) return;
+              const key = (o.color || o.value).toLowerCase();
+              if (o.color && o.color !== "unknown" && !seen.has(key)) { seen.add(key); uniq.push(o); }
+            });
+          }
+          return [AUTO].concat(uniq);
+        }
+
+        function labelFor(o) { return o.value === "" ? o.name : (o.color || o.name || o.value); }
+        function swatch(color) {
+          const s = document.createElement("span");
+          s.className = "rg-dd-sw";
+          if (color && color !== "unknown") s.style.background = color; else s.classList.add("empty");
+          return s;
+        }
+        function currentValue(roles) {
+          for (let i = 0; i < roles.length; i++) {
+            const h = document.querySelector('[data-template-role="' + roles[i] + '"]');
+            if (h) return h.value;
+          }
+          return "";
+        }
+        function assign(roles, value) {
+          roles.forEach(function (r) {
+            const h = document.querySelector('[data-template-role="' + r + '"]');
+            if (h) h.value = value;
+          });
+          const g = document.getElementById("generate");
+          if (g) g.click(); // render() rilegge i ruoli template dal DOM
+        }
+
+        const dropdowns = {};
+        Object.keys(ROLE_MAP).forEach(function (id) {
+          const box = document.getElementById(id);
+          if (!box) return;
+          box.innerHTML = "";
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.className = "rg-dd-btn";
+          const menu = document.createElement("div");
+          menu.className = "rg-dd-menu";
+          box.appendChild(btn);
+          box.appendChild(menu);
+          btn.addEventListener("click", function (e) {
+            e.stopPropagation();
+            document.querySelectorAll(".rg-dd.open").forEach(function (d) { if (d !== box) d.classList.remove("open"); });
+            box.classList.toggle("open");
+          });
+          dropdowns[id] = { box: box, btn: btn, menu: menu };
+        });
+        document.addEventListener("click", function () {
+          Object.keys(dropdowns).forEach(function (id) { dropdowns[id].box.classList.remove("open"); });
+        });
+
+        function renderButton(dd, opt) {
+          dd.btn.innerHTML = "";
+          dd.btn.appendChild(swatch(opt.color));
+          const lab = document.createElement("span");
+          lab.className = "rg-dd-label";
+          lab.textContent = labelFor(opt);
+          dd.btn.appendChild(lab);
+        }
+
+        function rebuild() {
+          const opts = selectableOptions();
+          Object.keys(ROLE_MAP).forEach(function (id) {
+            const dd = dropdowns[id];
+            if (!dd) return;
+            const cur = currentValue(ROLE_MAP[id]);
+            let selected = opts.filter(function (o) { return o.value === cur; })[0] || AUTO;
+            renderButton(dd, selected);
+            dd.menu.innerHTML = "";
+            opts.forEach(function (o) {
+              const it = document.createElement("button");
+              it.type = "button";
+              it.className = "rg-dd-opt";
+              it.setAttribute("aria-selected", o.value === selected.value ? "true" : "false");
+              it.appendChild(swatch(o.color));
+              const lab = document.createElement("span");
+              lab.textContent = labelFor(o);
+              it.appendChild(lab);
+              it.addEventListener("click", function (e) {
+                e.stopPropagation();
+                dd.box.classList.remove("open");
+                renderButton(dd, o);
+                assign(ROLE_MAP[id], o.value);
+              });
+              dd.menu.appendChild(it);
+            });
+          });
+        }
+
+        const panel = document.getElementById("templateLayerPanel");
+        if (panel) new MutationObserver(rebuild).observe(panel, { childList: true, subtree: true });
+        let tries = 0;
+        const t = setInterval(function () {
+          tries += 1;
+          if (window.__rgTemplateOptions) rebuild();
+          if (tries > 60) clearInterval(t);
+        }, 300);
+      })();
+
+      // Export: niente modale del nome — si va dritti al dialog di sistema "Salva con nome"
+      // (File System Access API, che sceglie posizione e nome), con fallback download.
+      (function () {
+        function ensureSvg(n) { n = (n || "").trim() || "export"; return /\.svg$/i.test(n) ? n : n + ".svg"; }
+        function fallbackDownload(name, text) {
+          const blob = new Blob([text], { type: "image/svg+xml" });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url; a.download = name;
+          document.body.appendChild(a); a.click(); a.remove();
+          setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+        }
+        async function saveExport(payload) {
+          const name = ensureSvg(payload.filename || "rg_oblique_completo.svg");
+          if (window.showSaveFilePicker) {
+            try {
+              const handle = await window.showSaveFilePicker({
+                suggestedName: name,
+                types: [{ description: "SVG", accept: { "image/svg+xml": [".svg"] } }]
+              });
+              const w = await handle.createWritable();
+              await w.write(new Blob([payload.text], { type: "image/svg+xml" }));
+              await w.close();
+            } catch (err) {
+              if (err && err.name === "AbortError") return; // utente ha annullato
+              fallbackDownload(name, payload.text);
+            }
+          } else {
+            fallbackDownload(name, payload.text);
+          }
+        }
+        // Intercetta l'export di app.js e apre direttamente il dialog di salvataggio.
+        window.__rgExportSink = function (payload) {
+          saveExport(payload);
+          return true; // gestito qui: app.js non scarica in automatico
+        };
+
+        // Riapri progetto: convoglia il file nell'input cartamodello, che rileva i parametri
+        // incorporati e ripristina tutto (o, se non è un progetto, lo carica come sagoma).
+        const reopen = document.getElementById("reopenProject");
+        const panelInput = document.getElementById("panelInput");
+        if (reopen && panelInput) {
+          reopen.addEventListener("change", function () {
+            const file = reopen.files && reopen.files[0];
+            if (!file) return;
+            const dt = new DataTransfer();
+            dt.items.add(file);
+            panelInput.files = dt.files;
+            panelInput.dispatchEvent(new Event("change", { bubbles: true }));
+            reopen.value = "";
+          });
+        }
+      })();
+    </script>
+  </body>
+</html>

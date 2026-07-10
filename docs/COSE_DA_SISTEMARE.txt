@@ -1,0 +1,114 @@
+RG Oblique Embroidery Pattern Generator - Cose da sistemare
+===========================================================
+
+Priorita alta
+-------------
+1. Separare src/app.js in moduli.
+
+   Il file e' troppo grande. Sarebbe opportuno separare almeno:
+
+   - import/normalizzazione SVG e DXF
+   - template layers
+   - griglia diagonale
+   - cleanup geometrico
+   - routing perimetrale
+   - coverage map
+   - export SVG
+   - UI/event handling
+
+2. Aggiungere test automatici.
+
+   Al momento il controllo reale e' soprattutto manuale. Servono test per:
+
+   - import scala SVG
+   - singolo modulo 1:1
+   - clipping rettangolo 100 x 100
+   - routing clockwise/counterclockwise shortest
+   - cut-generated routing sul perimetro di taglio
+   - Level 0/1 filtro da laser holes
+   - export punti generati = punti esportati
+
+3. Ripensare Level 0 e Level 1 da zero.
+
+   Il tentativo di creare una polyline tecnica singola per livello dopo filtro sui fori laser e' stato rimosso.
+   Serve riprogettare:
+
+   - ordine dei moduli dopo rimozione dei fori mancanti
+   - eventuali passaggi troppo lunghi tra gruppi lontani
+   - se serve spezzare in piu linee invece di forzare una unica linea
+   - se i passaggi tecnici devono seguire copertura futura o restare diretti
+   - come mantenere continuita senza creare passaggi sporchi o non producibili
+
+4. Consolidare Level 2 cut-generated routing.
+
+   Situazione attuale:
+
+   - i passaggi da taglio usano il perimetro di taglio del livello
+   - gli endpoint vengono proiettati solo se sono vicini al perimetro
+   - route con segmenti sopra cutBorderStitchLength viene scartato
+
+   Da verificare:
+
+   - evitare punti spostati al bordo senza motivo
+   - evitare linee libere che tagliano il ricamo
+   - gestire correttamente il caso in cui un connector da taglio non puo essere ricostruito
+   - eventualmente spezzare fisicamente la polyline quando il route non e' valido
+
+5. Rivedere coverage map.
+
+   La coverage map e' utile per ragionare sui travel nascosti, ma resta pesante e difficile da controllare.
+   Serve semplificare:
+
+   - meno parametri esposti
+   - preview bianco/nero chiara
+   - risoluzione adattiva
+   - cache dei calcoli
+   - niente marker inutili se l'utente vuole solo vedere la copertura Level 2
+
+Priorita media
+--------------
+1. Migliorare performance.
+
+   Zone critiche:
+
+   - rasterizzazione coverage map
+   - routing A*
+   - generazione grandi quantita di moduli
+   - DOM SVG con molti punti
+   - export grandi file
+
+2. Migliorare debug routing.
+
+   Sarebbe utile mostrare in modo separato:
+
+   - inter-diagonal routing
+   - intra-diagonal connector
+   - cut-generated routing
+   - connector bloccati
+   - route falliti con motivo
+
+3. Migliorare gestione template.
+
+   Il sistema supporta layer e colori, ma serve consolidare:
+
+   - scelta manuale path
+   - default su area piu grande
+   - distinzione contorno esterno / fori interni
+   - path pieni Illustrator
+
+4. Aggiornare README.
+
+   Il README descrive molte funzioni, ma non tutte le ultime modifiche:
+
+   - default 100 x 100
+   - viewBox zoom
+   - Level 0/1 technical single line
+   - design system
+   - cutBoundary separata da routingBounds
+
+Rischi noti
+-----------
+- La logica e' fragile perche molte funzioni condividono lo stato globale state.
+- Non ci sono test automatici per garantire che una correzione di Level 0 non rompa Level 2.
+- Alcuni parametri UI sono molti e poco chiari.
+- Alcune funzioni debug/report sono molto estese e rendono difficile capire cosa e' davvero usato in produzione.

@@ -1,0 +1,69 @@
+Prompt per nuova chat Codex
+===========================
+
+Usa questo prompt per riprendere il lavoro in un'altra chat.
+
+---
+
+Sto lavorando sul progetto locale:
+
+C:\Users\l.ercoli\Documents\GitHub\rg-oblique-embroidery-pattern-generator
+
+E' un'app web statica locale per generare un pattern ricamo oblique da SVG, con 4 livelli:
+
+- Level 0 placement
+- Level 1 fissaggio/stabilizzazione
+- Level 2 disegno decorativo
+- Level 4 laser holes
+
+Avvio:
+
+start-server.bat
+
+URL:
+
+http://127.0.0.1:8001/
+
+Prima di modificare codice, leggi questi file:
+
+- docs/OBIETTIVO.txt
+- docs/STATO_DEL_PROGETTO.txt
+- docs/COSE_DA_SISTEMARE.txt
+- docs/FUNZIONAMENTO_DEL_PROGETTO.txt
+- README.md
+- src/app.js
+- src/viewer/styles.css
+
+Stato tecnico attuale:
+
+- src/app.js passa `node --check`.
+- Il codice e' funzionante ma molto monolitico.
+- Non ci sono test automatici completi.
+- I default sono impostati per pannello 100 x 100 mm.
+- Diagonal count default 23.
+- Modules per diagonal default 35.
+- Auto fill diagonals e auto modules per diagonal sono disattivati di default.
+- Level 0, Level 1, Level 2 e holes sono attivi di default.
+- Lo zoom usa il viewBox: il riquadro SVG resta fisso, si zoomma il contenuto interno.
+- Level 0/1 vengono filtrati sui laser holes validi, ma la ricostruzione dei passaggi continui e' da riprogettare da zero.
+- Level 2 usa routing perimetrale tra diagonali.
+- Level 2 cut-generated routing deve usare il perimetro di taglio del livello, non il bordo esterno.
+
+Ultima area su cui stavamo lavorando:
+
+Pulizia Level 0 e Level 1 in base ai laser holes.
+Obiettivo: rimuovere posizionamento/fissaggio dove i fori non ci sono, eliminare punti/moduli in eccesso e progettare da zero una continuita pulita, senza ereditare il tentativo precedente di single-line tecnica.
+
+Attenzione:
+
+- Non rompere la logica Level 2 mentre lavori su Level 0/1.
+- Non cambiare la scala import SVG.
+- Non reintrodurre clipPath/mask come soluzione di export.
+- Non far passare i cut-generated routes sul bordo esterno se il taglio avviene su un perimetro interno/selezionato.
+- Quando correggi passaggi o cleanup, verifica sempre con `node --check src/app.js`.
+
+Richiesta iniziale consigliata:
+
+"Riprendi dal progetto rg-oblique-embroidery-pattern-generator. Leggi i file docs/*.txt creati per handoff, poi riprogetta da zero la logica Level 0/1 cleanup by laser holes. Voglio eliminare posizionamento/fissaggio dove non ci sono fori laser e ottenere continuita pulita, senza creare passaggi lunghi o inutili, e senza rompere Level 2."
+
+---

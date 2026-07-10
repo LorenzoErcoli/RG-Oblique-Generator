@@ -1,0 +1,27 @@
+/* RG Core — load after tokens.css. */
+*, *::before, *::after { box-sizing: border-box; }
+html { color-scheme: light; }
+body {
+  margin: 0;
+  color: var(--rg-color-text-primary);
+  background: var(--rg-color-white);
+  font-family: var(--rg-font-body);
+  font-size: var(--rg-font-size-sm);
+  line-height: var(--rg-line-height-body);
+  text-rendering: optimizeLegibility;
+}
+button, input, select, textarea { font: inherit; color: inherit; }
+button, [role="button"], a, input, select, textarea { transition: color var(--rg-motion-fast) var(--rg-motion-easing), background-color var(--rg-motion-fast) var(--rg-motion-easing), border-color var(--rg-motion-fast) var(--rg-motion-easing); }
+a { color: inherit; }
+img, svg { max-width: 100%; }
+:focus-visible { outline: 2px solid var(--rg-color-focus); outline-offset: 3px; }
+:disabled, [aria-disabled="true"] { cursor: not-allowed; }
+::selection { color: var(--rg-color-white); background: var(--rg-color-black); }
+.rg-surface { color: var(--rg-color-text-primary); background: var(--rg-color-white); }
+.rg-surface--secondary { background: var(--rg-color-neutral-50); }
+.rg-interactive:hover { border-color: var(--rg-color-neutral-600); }
+.rg-interactive:active { background: var(--rg-color-neutral-100); }
+.rg-interactive.is-selected, .rg-interactive[aria-selected="true"] { border-color: var(--rg-color-black); box-shadow: inset 3px 0 0 var(--rg-color-black); }
+.rg-interactive.is-disabled, .rg-interactive[aria-disabled="true"] { color: var(--rg-color-neutral-400); pointer-events: none; }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition-duration: 0.01ms !important; } }
+

@@ -1,0 +1,10 @@
+# Timestamped backups created while editing
+*.bak
+
+# Local Claude Code settings (machine-specific)
+.claude/settings.local.json
+
+# OS / editor cruft
+Thumbs.db
+.DS_Store
+desktop.ini

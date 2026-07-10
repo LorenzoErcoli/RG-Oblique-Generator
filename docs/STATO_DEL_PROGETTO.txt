@@ -1,0 +1,75 @@
+RG Oblique Embroidery Pattern Generator - Stato del progetto
+===========================================================
+
+Stato generale
+--------------
+Il progetto e' un'app web statica locale.
+
+File principali:
+
+- index.html
+- src/app.js
+- src/viewer/styles.css
+- src/design-system/*
+- examples/source/*
+- start-server.bat
+
+Il file principale src/app.js e' monolitico: al controllo del 2026-07-06 contiene circa 6312 righe.
+
+Controllo codice eseguito
+-------------------------
+Comando eseguito:
+
+node --check rg-oblique-embroidery-pattern-generator/src/app.js
+
+Risultato:
+
+- OK, nessun errore di sintassi JavaScript rilevato.
+
+Non risultano test automatici completi nel progetto. La verifica funzionale e' stata fatta soprattutto tramite browser e controlli manuali.
+
+Funzioni e aree implementate
+----------------------------
+- Import SVG normalizzato in mm.
+- Supporto SVG Illustrator senza width/height dichiarati, con fallback pt -> mm.
+- Lettura di path, polilinee, poligoni, linee, rettangoli, cerchi, ellissi e gruppi.
+- Supporto a path pieni/fill per template e contorni.
+- Template layers assegnabili a ruoli: MASTER_OUTLINE, LASER_REFERENCE, PLACEMENT_REFERENCE, PATTERN_REFERENCE, SATIN_REFERENCE, CORD_REFERENCE.
+- Preview colore dei layer template.
+- Parametri salvabili/importabili in JSON e preset localStorage.
+- Pannello 100 x 100 mm default.
+- Default oblique aggiornati da project_parameters (9).json, con 23 diagonali e 35 moduli per diagonale.
+- Auto fill diagonali e auto modules disattivati di default per conservare la ripetizione base.
+- Level 0, Level 1, Level 2 e holes attivi di default.
+- Zoom interno via viewBox: il riquadro SVG resta fisso, cambia solo la vista interna.
+- Pan interno alla viewport con Space + drag.
+- Zoom con Alt + wheel, Ctrl + wheel, tasti + / - / 0 quando il mouse e' sopra la viewport.
+- Cleanup stats spostato nel pannello sinistro come accordion chiuso.
+- Export SVG diviso in blocchi logici con limite massimo vertici per path.
+- Level 2: routing tra diagonali sul perimetro/routing lane.
+- Level 2: cut-generated routing sul perimetro di taglio del livello, non sul bordo esterno.
+- Level 0 e Level 1: il tentativo di ricostruzione tecnica in singola polyline dopo filtro sui fori laser validi e' stato rimosso. La nuova logica va riprogettata da zero.
+
+Design system
+-------------
+Il progetto importa una copia locale del design system RG:
+
+- src/design-system/tokens.css
+- src/design-system/styles/rg-core.css
+- src/design-system/styles/rg-typography.css
+- src/design-system/styles/rg-components.css
+- src/design-system/styles/rg-layout.css
+- src/design-system/styles/rg-utilities.css
+
+La UI e' stata riallineata visivamente:
+
+- font RG
+- input 40 px
+- bottoni coerenti
+- pannello laterale tecnico
+- colori piu neutrali
+- comandi compatti
+
+Punto tecnico importante
+-----------------------
+Il progetto e' operativo, ma non e' ancora architetturalmente pulito. La logica geometrica, UI, stato, import, cleanup, routing ed export sono ancora concentrate nello stesso file.

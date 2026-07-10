@@ -1,0 +1,287 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>RG Oblique Embroidery Pattern Generator</title>
+    <link rel="stylesheet" href="src/design-system/tokens.css" />
+    <link rel="stylesheet" href="src/design-system/styles/rg-core.css" />
+    <link rel="stylesheet" href="src/design-system/styles/rg-typography.css" />
+    <link rel="stylesheet" href="src/design-system/styles/rg-components.css" />
+    <link rel="stylesheet" href="src/design-system/styles/rg-layout.css" />
+    <link rel="stylesheet" href="src/design-system/styles/rg-utilities.css" />
+    <link rel="stylesheet" href="src/viewer/styles.css?v=20260706-revert-level01-passages" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <aside class="panel">
+        <header>
+          <h1>RG Oblique Generator</h1>
+          <p>Parametric embroidery panel from validated stitch SVG modules.</p>
+        </header>
+
+        <section>
+          <h2>Sources</h2>
+          <button id="loadExamples" type="button">Load bundled examples</button>
+          <label>Parameters JSON<input id="projectInput" type="file" accept=".json,application/json" /></label>
+          <label>Level 0 placement SVG<input id="level0Input" type="file" accept=".svg,image/svg+xml" /></label>
+          <label>Level 1 stitch SVG<input id="level1Input" type="file" accept=".svg,image/svg+xml" /></label>
+          <label>Level 2 stitch SVG<input id="level2Input" type="file" accept=".svg,image/svg+xml" /></label>
+          <label>Level 4 laser holes SVG<input id="holesInput" type="file" accept=".svg,image/svg+xml" /></label>
+          <label>Panel shape SVG/DXF<input id="panelInput" type="file" accept=".svg,.dxf,image/svg+xml" /></label>
+          <label><input data-param="showPanelShapeOverlay" type="checkbox" /> Show Panel Shape Overlay</label>
+          <label>Panel Shape Overlay Opacity<input data-param="panelShapeOverlayOpacity" type="number" min="0" max="1" step="0.05" value="0.45" /></label>
+          <label>Panel Shape Overlay Color<input data-param="panelShapeOverlayColor" type="color" value="#e52421" /></label>
+          <label><input data-param="panelShapeOverlayUseOriginalColors" type="checkbox" checked /> Use Original Colors</label>
+          <label><input data-param="panelShapeOverlayOnTop" type="checkbox" checked /> Panel Shape Overlay On Top</label>
+          <label>Raw import source<select id="rawImportSource"><option value="panel">Panel/template</option><option value="level0">Level 0</option><option value="level1">Level 1</option><option value="level2">Level 2</option><option value="holes">Level 4 holes</option></select></label>
+          <button id="showRawImportedSvg" type="button">Show Raw Imported SVG</button>
+        </section>
+
+        <section class="grid-controls">
+          <h2>Pattern Shape</h2>
+          <label>Top offset<input data-param="patternTopOffset" type="number" step="0.1" value="0" /></label>
+          <label>Bottom offset<input data-param="patternBottomOffset" type="number" step="0.1" value="0" /></label>
+          <label>Left offset<input data-param="patternLeftOffset" type="number" step="0.1" value="0" /></label>
+          <label>Right offset<input data-param="patternRightOffset" type="number" step="0.1" value="0" /></label>
+          <label><input data-layer="patternPreview" type="checkbox" checked /> Pattern preview</label>
+          <label><input data-layer="decorativeBoundary" type="checkbox" checked /> Decorative boundary</label>
+        </section>
+
+        <section>
+          <h2>Template Layers</h2>
+          <div id="templateLayerPanel" class="template-layer-panel">No template layers detected</div>
+        </section>
+
+        <section class="grid-controls">
+          <h2>Format</h2>
+          <label>Format width mm<input data-param="formatWidth" type="number" step="1" value="1178.1" /></label>
+          <label>Format height mm<input data-param="formatHeight" type="number" step="1" value="1018.8" /></label>
+          <label>Format origin X<input data-param="formatOriginX" type="number" step="1" value="0" /></label>
+          <label>Format origin Y<input data-param="formatOriginY" type="number" step="1" value="0" /></label>
+          <label>Overflow margin mm<input data-param="overflowMarginMm" type="number" step="1" value="80" /></label>
+          <label>Perimeter lane width<input data-param="perimeterLaneWidth" type="number" step="0.5" value="3" /></label>
+        </section>
+
+        <section class="grid-controls">
+          <h2>Anchors</h2>
+          <label>Anchor mode<select data-param="anchorMode"><option>origin</option><option selected>bbox_center</option><option>manual</option></select></label>
+          <label>Manual anchor X<input data-param="manualAnchorX" type="number" step="0.1" value="0" /></label>
+          <label>Manual anchor Y<input data-param="manualAnchorY" type="number" step="0.1" value="0" /></label>
+        </section>
+
+        <section class="grid-controls">
+          <h2>Diagonal Lattice</h2>
+          <label>Scale<input data-param="moduleScale" type="number" step="0.05" value="1" /></label>
+          <label><input data-param="autoFillDiagonals" type="checkbox" checked /> Auto-fill diagonals</label>
+          <label><input data-param="autoModulesPerDiagonal" type="checkbox" checked /> Auto modules/diagonal</label>
+          <label>Diagonal count<input data-param="diagonalCount" type="number" step="1" value="8" /></label>
+          <label>Modules per diagonal<input data-param="modulesPerDiagonal" type="number" step="1" value="24" /></label>
+          <label>Start X<input data-param="startOffsetX" type="number" step="1" value="42" /></label>
+          <label>Start Y<input data-param="startOffsetY" type="number" step="1" value="42" /></label>
+          <label>Vector A X<input data-param="vectorAX" type="number" step="0.1" value="52.6" /></label>
+          <label>Vector A Y<input data-param="vectorAY" type="number" step="0.1" value="41.8" /></label>
+          <label>Vector B X<input data-param="vectorBX" type="number" step="0.1" value="0" /></label>
+          <label>Vector B Y<input data-param="vectorBY" type="number" step="0.1" value="155" /></label>
+          <label>Horizontal gap<input data-param="horizontalGap" type="number" step="0.1" value="0" /></label>
+          <label>Vertical gap<input data-param="verticalGap" type="number" step="0.1" value="0" /></label>
+          <label>Horizontal overlap<input data-param="horizontalOverlap" type="number" step="0.1" value="0" /></label>
+          <label>Vertical overlap<input data-param="verticalOverlap" type="number" step="0.1" value="0" /></label>
+          <label>Row shift X<input data-param="rowShiftX" type="number" step="0.1" value="0" /></label>
+          <label>Row shift Y<input data-param="rowShiftY" type="number" step="0.1" value="0" /></label>
+          <label>Rotation<input data-param="rotation" type="number" step="1" value="0" /></label>
+        </section>
+
+        <section class="grid-controls">
+          <h2>Laser</h2>
+          <label><input data-param="enableLevel0" type="checkbox" /> Enable Level 0</label>
+          <label><input data-param="enableHolesLayer" type="checkbox" /> Enable laser holes</label>
+          <label>Laser top offset<input data-param="laserTopOffset" type="number" step="0.1" value="60" /></label>
+          <label>Laser bottom offset<input data-param="laserBottomOffset" type="number" step="0.1" value="0" /></label>
+          <label>Laser left offset<input data-param="laserLeftOffset" type="number" step="0.1" value="20" /></label>
+          <label>Laser right offset<input data-param="laserRightOffset" type="number" step="0.1" value="0" /></label>
+          <label>Holes offset X<input data-param="holesOffsetX" type="number" step="0.1" value="0" /></label>
+          <label>Holes offset Y<input data-param="holesOffsetY" type="number" step="0.1" value="0" /></label>
+          <label>Holes scale<input data-param="holesScale" type="number" step="0.05" value="1" /></label>
+          <label>Holes anchor X<input data-param="holesAnchorX" type="number" step="0.1" value="0" /></label>
+          <label>Holes anchor Y<input data-param="holesAnchorY" type="number" step="0.1" value="0" /></label>
+        </section>
+
+        <section class="grid-controls">
+          <h2>Placement</h2>
+          <label>Placement top offset<input data-param="placementTopOffset" type="number" step="0.1" value="60" /></label>
+          <label>Placement bottom offset<input data-param="placementBottomOffset" type="number" step="0.1" value="0" /></label>
+          <label>Placement left offset<input data-param="placementLeftOffset" type="number" step="0.1" value="20" /></label>
+          <label>Placement right offset<input data-param="placementRightOffset" type="number" step="0.1" value="0" /></label>
+          <label>Level 0 mode<select data-param="level0Mode"><option value="module" selected>Module SVG</option><option value="procedural">Generated from laser holes</option></select></label>
+          <label>Level 0 clip mode<select data-param="level0ClipMode"><option value="strict_clip" selected>strict_clip</option><option value="keep_module_if_intersects">keep_module_if_intersects</option><option value="keep_only_if_fully_inside">keep_only_if_fully_inside</option></select></label>
+          <label>Level 0 hole stitch<input data-param="level0HoleStitchLength" type="number" step="0.1" value="2" /></label>
+          <label>Level 0 travel stitch<input data-param="level0TravelStitchLength" type="number" step="0.1" value="2" /></label>
+          <label>Hole entry candidates<input data-param="holeEntryCandidateCount" type="number" min="4" step="1" value="16" /></label>
+          <label>Path orthogonality weight<input data-param="pathOrthogonalityWeight" type="number" step="1" value="30" /></label>
+          <label><input data-param="allowDiagonalTravel" type="checkbox" /> Allow diagonal travel</label>
+          <label>Minimum turn distance<input data-param="minimumTurnDistanceMm" type="number" step="0.1" value="1.5" /></label>
+          <label>Coverage source<select data-param="coverageSource"><option value="level2" selected>Level 2 only</option><option value="future_layers">All future layers</option></select></label>
+          <label>Coverage resolution mm<input data-param="coverageResolutionMm" type="number" step="0.05" value="0.5" /></label>
+          <label>Level 2 edge compensation<input data-param="coverageDilationMm" type="number" step="0.05" value="2" /></label>
+          <label>Gap closing / join circles<input data-param="coverageGapClosingMm" type="number" step="0.05" value="0.2" /></label>
+          <label>Minimum coverage density<input data-param="coverageMinimumDensity" type="number" min="1" step="1" value="1" /></label>
+          <label><input data-param="coverageMaskPreview" type="checkbox" checked /> Show Level 2 coverage mask only</label>
+          <label>Mask opacity<input data-param="coverageMaskOpacity" type="number" step="0.05" value="0.55" /></label>
+          <label>Preview max pixels<input data-param="coveragePreviewMaxPixels" type="number" step="100000" value="1200000" /></label>
+          <label>Level 0 offset X<input data-param="level0OffsetX" type="number" step="0.1" value="0" /></label>
+          <label>Level 0 offset Y<input data-param="level0OffsetY" type="number" step="0.1" value="0" /></label>
+          <label>Level 0 scale<input data-param="level0Scale" type="number" step="0.05" value="1" /></label>
+          <label>Level 0 anchor X<input data-param="level0AnchorX" type="number" step="0.1" value="0" /></label>
+          <label>Level 0 anchor Y<input data-param="level0AnchorY" type="number" step="0.1" value="0" /></label>
+        </section>
+
+        <section class="grid-controls">
+          <h2>Stabilization</h2>
+          <label>Level 1 clip mode<select data-param="level1ClipMode"><option value="strict_clip" selected>strict_clip</option><option value="keep_module_if_intersects">keep_module_if_intersects</option><option value="keep_only_if_fully_inside">keep_only_if_fully_inside</option></select></label>
+          <label>Level 1 offset X<input data-param="level1OffsetX" type="number" step="0.1" value="0" /></label>
+          <label>Level 1 offset Y<input data-param="level1OffsetY" type="number" step="0.1" value="0" /></label>
+        </section>
+
+        <section class="grid-controls">
+          <h2>Decorative Pattern</h2>
+          <label>Pattern border offset<input data-param="patternBorderOffset" type="number" step="0.1" value="0" /></label>
+          <label>Level 2 offset X<input data-param="level2OffsetX" type="number" step="0.1" value="0" /></label>
+          <label>Level 2 offset Y<input data-param="level2OffsetY" type="number" step="0.1" value="0" /></label>
+        </section>
+
+        <section class="grid-controls">
+          <h2>Global Pattern Offset</h2>
+          <label>Global offset X<input data-param="globalPatternOffsetX" type="number" step="0.1" value="0" /></label>
+          <label>Global offset Y<input data-param="globalPatternOffsetY" type="number" step="0.1" value="0" /></label>
+          <label>Nudge step mm<input data-param="nudgeStep" type="number" step="0.1" value="1" /></label>
+          <label>Hole match tolerance<input data-param="holeMatchTolerance" type="number" step="0.1" value="0.5" /></label>
+          <label><input data-param="globalOffsetBorderReferences" type="checkbox" /> Offset border references</label>
+          <div class="nudge-controls">
+            <button data-nudge="-1,0" type="button">← 1 mm</button>
+            <button data-nudge="1,0" type="button">→ 1 mm</button>
+            <button data-nudge="0,-1" type="button">↑ 1 mm</button>
+            <button data-nudge="0,1" type="button">↓ 1 mm</button>
+          </div>
+        </section>
+
+        <section class="grid-controls">
+          <h2>Cleanup</h2>
+          <label>Minimum stitch length<input data-param="minimumSegmentLength" type="number" step="0.1" value="1" /></label>
+          <label>Snap distance<input data-param="snapToEdgeDistance" type="number" step="0.1" value="0.5" /></label>
+          <label>Tolerance<input data-param="cleanupTolerance" type="number" step="0.1" value="0.25" /></label>
+          <label>Mode<select data-param="cleanupMode"><option>strict_clip</option><option>snap_to_edge</option><option>trim_and_close</option></select></label>
+        </section>
+
+        <section class="grid-controls">
+          <h2>Travel Path Settings</h2>
+          <label>Minimum travel stitch<input data-param="minimumTravelStitchLength" type="number" step="0.1" value="3" /></label>
+          <label>Cut border stitch<input data-param="cutBorderStitchLength" type="number" step="0.1" value="2" /></label>
+          <label>Travel mode<select data-param="travelPathMode"><option>Straight</option><option selected>Border Following</option><option>Optimized</option></select></label>
+          <label>Travel routing strategy<select data-param="travelRoutingStrategy"><option value="shortest_valid" selected>shortest_valid</option><option value="clockwise">clockwise</option><option value="counter_clockwise">counterclockwise</option></select></label>
+          <label>Travel side strategy<select data-param="travelSideStrategy"><option>auto</option><option>prefer_top</option><option>prefer_bottom</option><option>prefer_left</option><option>prefer_right</option><option>nearest_border</option><option>clockwise</option><option>counter_clockwise</option></select></label>
+          <label>Routing perimeter source<select data-param="routingPerimeterSource"><option value="MASTER_OUTLINE" selected>MASTER_OUTLINE</option><option value="PATTERN_REFERENCE">PATTERN_REFERENCE</option><option value="CORD_REFERENCE">CORD_REFERENCE</option><option value="program_rectangle">Program rectangle</option></select></label>
+          <label>Perimeter close tolerance<input data-param="perimeterCloseTolerance" type="number" step="0.01" value="0.1" /></label>
+          <label>Perimeter lane tolerance<input data-param="perimeterLaneTolerance" type="number" step="0.1" value="1" /></label>
+          <label><input data-param="allowInternalShortcuts" type="checkbox" /> Allow internal shortcuts</label>
+          <label><input data-layer="travelPathVisualization" type="checkbox" checked /> Travel visualization</label>
+        </section>
+
+        <section class="grid-controls">
+          <h2>Border Embroidery</h2>
+          <label><input data-param="enableZigZagBorder" type="checkbox" checked /> Enable zig-zag border</label>
+          <label>Zig-zag width<input data-param="zigZagWidth" type="number" step="0.1" value="4" /></label>
+          <label>Zig-zag density<input data-param="zigZagDensity" type="number" step="0.1" value="3" /></label>
+          <label>Cord width<input data-param="cordWidth" type="number" step="0.1" value="2" /></label>
+          <label>Cord density<input data-param="cordDensity" type="number" step="0.1" value="0.6" /></label>
+          <label>Cord offset<input data-param="cordOffset" type="number" step="0.1" value="0" /></label>
+          <label>Border offset<select data-param="borderOffsetMode"><option>inside</option><option selected>center</option><option>outside</option></select></label>
+          <label><input data-layer="borderPreview" type="checkbox" checked /> Border preview</label>
+        </section>
+
+        <section>
+          <h2>Layers</h2>
+          <label><input data-layer="level1" type="checkbox" checked /> Level 1</label>
+          <label><input data-layer="level2" type="checkbox" checked /> Level 2</label>
+          <label><input data-layer="level0" type="checkbox" checked /> Level 0</label>
+          <label><input data-layer="holes" type="checkbox" checked /> Laser holes</label>
+          <label><input data-layer="travel" type="checkbox" checked /> Travel</label>
+          <label><input data-layer="boundary" type="checkbox" checked /> Boundary</label>
+          <label><input data-layer="satin" type="checkbox" checked /> Satin</label>
+          <label><input data-layer="anchors" type="checkbox" checked /> Anchors</label>
+          <label><input data-layer="nodes" type="checkbox" /> Nodes</label>
+          <label><input data-layer="debugCleanup" type="checkbox" /> Cleanup debug</label>
+          <label><input id="clipPreview" type="checkbox" checked /> Clean geometry preview</label>
+        </section>
+
+        <section>
+          <h2>Cleanup Debug</h2>
+          <label><input data-layer="debugOriginalPoints" type="checkbox" checked /> Original points</label>
+          <label><input data-layer="debugDeletedPoints" type="checkbox" checked /> Deleted points</label>
+          <label><input data-layer="debugMovedPoints" type="checkbox" checked /> Moved points</label>
+          <label><input data-layer="debugIntersectionPoints" type="checkbox" checked /> Intersection points</label>
+          <label><input data-layer="debugRemovedSegments" type="checkbox" checked /> Removed segments</label>
+          <label><input data-layer="debugValidSegments" type="checkbox" checked /> Valid segments</label>
+          <label><input data-layer="debugBoundary" type="checkbox" checked /> Boundary</label>
+          <label><input data-layer="debugPerimeterLane" type="checkbox" checked /> Perimeter lane</label>
+          <label><input data-layer="debugRoutingPaths" type="checkbox" checked /> Border routing paths</label>
+          <label><input data-layer="debugExitEntryPoints" type="checkbox" checked /> Exit/entry points</label>
+          <label><input data-layer="debugIntraDiagonalConnectors" type="checkbox" checked /> Intra-diagonal connectors</label>
+          <label><input data-layer="debugScaleBboxes" type="checkbox" checked /> Scale bboxes</label>
+          <label><input data-layer="debugZigZagPeaks" type="checkbox" checked /> Zig-zag peaks/valleys</label>
+          <label><input data-layer="debugTravelPoints" type="checkbox" checked /> Travel path points</label>
+          <label><input data-layer="debugCoverageMap" type="checkbox" /> Coverage map points</label>
+          <label><input data-layer="debugCoverageMask" type="checkbox" checked /> B/W coverage mask</label>
+          <label><input data-layer="debugCoveredTravelOptimizer" type="checkbox" /> Covered travel optimizer</label>
+        </section>
+
+        <section class="actions">
+          <h2>Presets</h2>
+          <label>Maximum vertices per path<input data-param="maximumVerticesPerPath" type="number" step="100" value="5000" /></label>
+          <label><input data-param="validateExport" type="checkbox" /> Validate export</label>
+          <button data-preset="saveLocal" type="button">Save preset</button>
+          <button data-preset="loadLocal" type="button">Load preset</button>
+          <button data-preset="reset" type="button">Reset defaults</button>
+          <button data-export="params" type="button">Parameters JSON</button>
+          <button id="testSingleModuleScale" type="button">Test single module scale</button>
+        </section>
+
+        <section class="actions">
+          <button id="generate" type="button">Generate</button>
+          <button data-export="clean" type="button">Clean SVG</button>
+          <button data-export="fullEmbroidery" type="button">Full embroidery</button>
+          <button data-export="debug" type="button">Debug SVG</button>
+          <button data-export="templateDebug" type="button">Template debug</button>
+          <button data-export="level0" type="button">Level 0</button>
+          <button data-export="level0Placement" type="button">Level 0 placement</button>
+          <button data-export="level1" type="button">Level 1</button>
+          <button data-export="level1Stabilization" type="button">Level 1 stabilization</button>
+          <button data-export="level2" type="button">Level 2</button>
+          <button data-export="level2Logo" type="button">Level 2 logo</button>
+          <button data-export="holes" type="button">Laser holes</button>
+          <button data-export="level4Laser" type="button">Level 4 laser</button>
+          <button data-export="travel" type="button">Travel</button>
+          <button data-export="satin" type="button">Satin</button>
+          <button data-export="satinFill" type="button">Satin fill</button>
+          <button data-export="cordoncino" type="button">Cordoncino</button>
+          <button data-export="cleanupReport" type="button">Cleanup report</button>
+          <button data-export="routingReport" type="button">Routing report</button>
+          <button data-export="unitReport" type="button">Unit report</button>
+          <button data-export="exportReport" type="button">Export report</button>
+          <button data-export="scaleTestReport" type="button">Scale test report</button>
+        </section>
+        <aside id="cleanupStats" class="stats-panel"></aside>
+      </aside>
+
+      <section class="workspace">
+        <div class="toolbar">
+          <span id="status">No sources loaded</span>
+        </div>
+        <div id="viewport" class="viewport">
+          <svg id="preview" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1178.1 1018.8"></svg>
+        </div>
+      </section>
+    </main>
+    <script src="src/app.js?v=20260706-revert-level01-passages"></script>
+  </body>
+</html>

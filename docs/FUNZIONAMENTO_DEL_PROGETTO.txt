@@ -1,0 +1,121 @@
+RG Oblique Embroidery Pattern Generator - Funzionamento
+=======================================================
+
+Come avviare
+------------
+Aprire la cartella:
+
+C:\Users\l.ercoli\Documents\GitHub\rg-oblique-embroidery-pattern-generator
+
+Avvio consigliato:
+
+start-server.bat
+
+Oppure:
+
+python -m http.server 8001
+
+Poi aprire:
+
+http://127.0.0.1:8001/
+
+Flusso principale
+-----------------
+1. Caricamento sorgenti.
+
+   Il sistema carica o importa:
+
+   - Level 0 placement SVG
+   - Level 1 stitch SVG
+   - Level 2 stitch SVG
+   - Level 4 laser holes SVG
+   - Panel shape SVG/DXF
+   - JSON parametri
+
+2. Normalizzazione.
+
+   Ogni SVG viene convertito in geometrie interne in mm.
+   Il viewBox non viene trattato come misura reale se non quando manca ogni altra informazione.
+
+3. Template.
+
+   Se esiste un template, i layer/path possono essere assegnati a ruoli:
+
+   - MASTER_OUTLINE
+   - LASER_REFERENCE
+   - PLACEMENT_REFERENCE
+   - PATTERN_REFERENCE
+   - SATIN_REFERENCE
+   - CORD_REFERENCE
+
+4. Generazione griglia.
+
+   Il sistema genera moduli su una griglia diagonale.
+   I default attuali sono:
+
+   - pannello 100 x 100 mm
+   - diagonal_count 23
+   - modules_per_diagonal 35
+   - auto fill disattivato
+   - auto modules disattivato
+
+5. Global offset.
+
+   Il pattern generato puo essere traslato con Global Pattern Offset X/Y.
+   Questo offset agisce dopo la generazione della griglia e prima del cleanup/taglio.
+
+6. Laser holes.
+
+   Il Level 4 produce:
+
+   - perimetro esterno/laser
+   - fori interni validi
+
+   I fori validi vengono usati anche per filtrare Level 0 e Level 1.
+
+7. Level 0 e Level 1.
+
+   Se i laser holes sono attivi:
+
+   - vengono mantenuti solo i moduli associati a fori validi
+   - vengono rimossi i moduli senza foro
+   - la ricostruzione dei passaggi continui Level 0/1 e' da riprogettare da zero
+
+8. Level 2.
+
+   Level 2 e' il disegno decorativo principale.
+
+   Regole:
+
+   - dentro la stessa diagonale i moduli si collegano direttamente
+   - tra diagonali il passaggio usa il routing perimetrale
+   - se un modulo viene tagliato dal perimetro, il cut-generated routing deve seguire il perimetro di taglio del livello
+   - i passaggi da taglio devono rispettare cutBorderStitchLength
+
+9. Preview.
+
+   La preview usa SVG.
+   Lo zoom non ridimensiona piu il riquadro: modifica il viewBox interno.
+
+   Comandi:
+
+   - Alt + rotella: zoom
+   - Ctrl + rotella: zoom fallback
+   - + / -: zoom tastiera
+   - 0: reset zoom e pan
+   - Space + drag: pan interno
+
+10. Export.
+
+   L'export produce SVG in mm.
+   I livelli sono separati in gruppi logici.
+   Esiste un limite massimo di vertici per path per evitare file troppo grandi.
+
+File importanti
+---------------
+- index.html: struttura UI e caricamento CSS/JS.
+- src/app.js: logica completa applicazione.
+- src/viewer/styles.css: stile specifico app.
+- src/design-system: copia locale CSS design system RG.
+- examples/source: moduli SVG di default.
+- docs: documentazione tecnica.

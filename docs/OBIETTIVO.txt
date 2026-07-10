@@ -1,0 +1,56 @@
+RG Oblique Embroidery Pattern Generator - Obiettivo
+==================================================
+
+Obiettivo principale
+--------------------
+Sviluppare un tool web locale per generare il pattern ricamo oblique partendo da moduli SVG validati.
+
+Il tool deve lavorare in millimetri reali, mantenere la scala dei moduli importati, ripetere i livelli secondo una griglia diagonale parametrica, tagliare il risultato rispetto al perimetro selezionato e produrre SVG esportabili per ricamo e laser.
+
+Pattern attuale di riferimento
+------------------------------
+Il progetto e' ora orientato al pattern oblique a 4 livelli:
+
+- Level 0: posizionamento / placement.
+- Level 1: fissaggio / stabilizzazione.
+- Level 2: disegno decorativo principale.
+- Level 4: laser holes.
+
+Parametri di partenza desiderati
+--------------------------------
+Il default deve aprire su un pannello 100 x 100 mm, modificabile dall'interfaccia.
+
+La griglia di partenza deve usare:
+
+- diagonal_count = 23
+- modules_per_diagonal = 35
+- auto_fill_diagonals = false
+- auto_modules_per_diagonal = false
+- moduleScale = 1
+- vector A = 18.5 / -14.8
+- vector B = -8.45 / 54.8
+- start offset X = 2.8
+- start offset Y = 27.5
+
+I livelli tecnici devono restare allineati alla stessa griglia globale. Gli offset dei singoli livelli servono solo come micro-calibrazione.
+
+Regole di produzione importanti
+-------------------------------
+- Le coordinate interne devono vivere in mm.
+- L'import SVG deve normalizzare una sola volta da SVG/viewBox/unit a mm.
+- L'export deve avere width/height in mm e viewBox coerente in mm.
+- Level 2 deve essere tagliato precisamente dal perimetro selezionato.
+- I passaggi Level 2 generati dal taglio devono seguire il perimetro che ha tagliato il modulo, non il bordo piu esterno.
+- I passaggi devono rispettare la lunghezza punto impostata.
+- Level 0 e Level 1 devono essere puliti in base ai fori laser validi: dove il foro non esiste, posizionamento e fissaggio vanno rimossi.
+- Level 0 e Level 1, dopo la rimozione dei moduli senza foro, devono diventare linee tecniche continue quando possibile.
+
+Output attesi
+-------------
+- SVG completo pulito.
+- SVG per singoli livelli.
+- SVG laser holes.
+- SVG debug.
+- JSON parametri.
+- JSON cleanup/routing/unit/export report.
+

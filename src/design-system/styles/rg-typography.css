@@ -1,0 +1,15 @@
+/* RG Typography */
+.rg-h1, .rg-h2, .rg-h3 { margin: 0; font-family: var(--rg-font-identity); line-height: var(--rg-line-height-heading); }
+.rg-h1 { font-size: var(--rg-font-size-2xl); letter-spacing: var(--rg-letter-tight); }
+.rg-h2 { font-size: var(--rg-font-size-xl); }
+.rg-h3 { font-size: var(--rg-font-size-lg); }
+.rg-body { margin: 0; max-width: 68ch; font-size: var(--rg-font-size-md); }
+.rg-small, .rg-caption { margin: 0; color: var(--rg-color-text-secondary); font-size: var(--rg-font-size-xs); }
+.rg-caption { line-height: var(--rg-line-height-technical); }
+.rg-label { font-family: var(--rg-font-identity); font-size: var(--rg-font-size-xs); font-weight: var(--rg-weight-medium); letter-spacing: var(--rg-letter-label); text-transform: uppercase; }
+.rg-mono, .rg-number, .rg-technical, .rg-value, code, pre { font-family: var(--rg-font-mono); font-variant-numeric: tabular-nums; }
+.rg-technical { font-size: 13px; line-height: var(--rg-line-height-technical); }
+.rg-value { font-size: var(--rg-font-size-2xl); line-height: 1; letter-spacing: var(--rg-letter-tight); }
+.rg-value__unit { color: var(--rg-color-text-secondary); font-size: var(--rg-font-size-sm); letter-spacing: var(--rg-letter-normal); }
+.rg-code { margin: 0; padding: var(--rg-space-4); overflow: auto; background: var(--rg-color-neutral-50); border: 1px solid var(--rg-color-border); font-size: var(--rg-font-size-xs); line-height: 1.65; }
+
