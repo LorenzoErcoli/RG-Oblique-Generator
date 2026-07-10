@@ -3914,21 +3914,45 @@
       const end = pts[pts.length - 1];
       const bStart = closestPointOnBoundary(start, boundary);
       const bEnd = closestPointOnBoundary(end, boundary);
-      const out = [];
+      // Build with concat, never `push(...bigArray)`: spreading thousands of points into a
+      // function call overflows the argument stack (RangeError on large SVGs).
+      let out;
       if (bStart) {
         const lock = lockAt(bStart);
         const entry = resampleTravelPath([lock[lock.length - 1], start], s);
-        out.push(...lock, ...entry.slice(1), ...pts.slice(1));
+        out = lock.concat(entry.slice(1), pts.slice(1));
       } else {
-        out.push(...pts);
+        out = pts.slice();
       }
       if (bEnd) {
         const lock = lockAt(bEnd);
         const exit = resampleTravelPath([end, lock[0]], s);
-        out.push(...exit.slice(1), ...lock.slice(1));
+        out = out.concat(exit.slice(1), lock.slice(1));
       }
       polyline.points = out;
     });
+  }
+
+  // Remove geometry that falls inside exclusion areas (inner contours of the reference of the
+  // same colour), splitting each polyline so the pattern is interrupted there = empty area.
+  function subtractExclusions(polylines, exclusions) {
+    if (!Array.isArray(exclusions) || !exclusions.length) return polylines;
+    const output = [];
+    polylines.forEach((polyline) => {
+      if (!polyline || !Array.isArray(polyline.points)) return;
+      let run = [];
+      polyline.points.forEach((point) => {
+        const inside = exclusions.some((exclusion) => isInside(point, exclusion, 0));
+        if (inside) {
+          if (run.length > 1) output.push({ ...polyline, points: run });
+          run = [];
+        } else {
+          run.push(point);
+        }
+      });
+      if (run.length > 1) output.push({ ...polyline, points: run });
+    });
+    return output;
   }
 
   function cutGeneratedBorderRoute(exitPoint, reentryPoint, bounds, stitchLength, report) {
@@ -5632,7 +5656,9 @@
     const level1 = applyModuleClipMode(level1HoleFiltered, placementBounds, state.params.level1ClipMode || "strict_clip", "level1", emptyReport());
     const level2Cleanup = cleanupPolylines(rawLevel2, bounds);
     const level2CutReconnect = reconnectCutFragmentsOnBoundary(level2Cleanup.polylines, bounds);
-    const level2 = { polylines: level2CutReconnect.polylines, report: level2Cleanup.report };
+    // Empty areas inside the pattern: inner contours of the pattern colour cut out the pattern.
+    const level2WithVoids = subtractExclusions(level2CutReconnect.polylines, bounds.exclusions);
+    const level2 = { polylines: level2WithVoids, report: level2Cleanup.report };
     let coverageMap = null;
     const needsCoveragePreview = state.params.coverageMaskPreview || state.layers.debugCoverageMask || state.layers.debugCoverageMap || state.layers.debugCoveredTravelOptimizer;
     if ((level0Enabled && !level0UsesModule) || state.params.travelTestMode || needsCoveragePreview) {
