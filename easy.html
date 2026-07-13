@@ -63,7 +63,7 @@
       <aside class="panel easy-panel">
         <header>
           <h1>RG Oblique</h1>
-          <p>Modalità semplice · <span style="opacity:.6">v34</span></p>
+          <p>Modalità semplice · <span style="opacity:.6">v35</span></p>
         </header>
 
         <section>
@@ -100,9 +100,10 @@
 
         <details class="easy-acc">
           <summary>Punti minimi</summary>
-          <label>Punto minimo globale (mm)<input data-param="minimumSegmentLength" type="number" step="0.1" min="0" /></label>
-          <label>Punto minimo pulizia bordi (mm)<input data-param="cutBorderStitchLength" type="number" step="0.1" min="0" /></label>
-          <p class="easy-hint">Globale: nessun punto sotto questa lunghezza in tutto il ricamo (L0/L1/L2). Bordi: lunghezza dei punti nei passaggi di taglio/perimetro. Valori più bassi = più punti/dettaglio.</p>
+          <label>Lunghezza punti passaggi/bordi (mm)<input data-param="minimumTravelStitchLength" type="number" step="0.05" min="1" /></label>
+          <label>Punto minimo globale (mm)<input data-param="minimumSegmentLength" type="number" step="0.1" min="1" /></label>
+          <label>Punto minimo bordi da taglio (mm)<input data-param="cutBorderStitchLength" type="number" step="0.1" min="1" /></label>
+          <p class="easy-hint">Passaggi/bordi: lunghezza dei punti nelle passate lungo i bordi/perimetro (consigliato 2–2,5mm). Globale: nessun punto sotto questa lunghezza in tutto il ricamo (L0/L1/L2) — tienilo ≥1mm. Bordi da taglio: punti nei tratti generati dai tagli.</p>
           <label class="inline"><input data-param="startLockEnabled" type="checkbox" /> Partenza dal bordo (scarico filo)</label>
           <label>Punto partenza/ingresso (mm)<input data-param="startLockStitchMm" type="number" step="0.5" min="0.5" /></label>
           <p class="easy-hint">Ogni tratto di L0/L1/L2 parte dal bordo con 3 punti verticali (ancoraggio filo), poi entra con un passaggio a questa lunghezza, poi inizia il ricamo.</p>
@@ -194,6 +195,10 @@
         startLockEnabled: true,
         showPanelShapeOverlay: true,
         panelShapeOverlayUseOriginalColors: false,
+        // Lunghezza punti nei passaggi/bordi ~2.25mm; pavimento globale 1mm (mai sotto).
+        minimumTravelStitchLength: 2.25,
+        cutBorderStitchLength: 2.25,
+        minimumSegmentLength: 1.0,
         // Pattern e moduli restano 1:1 (il pattern non si scala, si sposta soltanto).
         moduleScale: 1, level0Scale: 1, level2Scale: 1, holesScale: 1,
         // Rettangolo pattern = pannello meno il rientro uniforme (patternBorderOffset);
@@ -210,7 +215,7 @@
         anchors: false, nodes: false, debugCleanup: false
       };
     </script>
-    <script src="src/app.js?v=20260713-easy34"></script>
+    <script src="src/app.js?v=20260713-easy35"></script>
     <script>
       // Glue: un unico "rientro fori" pilota gli 8 offset (fori laser + piazzamento + fissaggio)
       // in modo uniforme su tutti e 4 i lati, così condividono lo stesso rettangolo di taglio.
