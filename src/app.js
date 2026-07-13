@@ -3301,28 +3301,51 @@
     return { ...last(points) };
   }
 
-  // Feature/passage pruning (L0/L1): walk a placed polyline and detect "balloon" excursions —
-  // a sub-path that leaves the through-line (the mainline), makes a circle / zig-zag rosette,
-  // and returns close to where it left. Such a balloon = one feature plus the spur that reaches
-  // it. Keep the whole balloon only if a valid hole sits inside it; otherwise drop it entirely
-  // (circle AND spur) and bridge departure -> return, so no stub is left pointing at a removed
-  // circle. The mainline (which progresses instead of returning) is never a balloon and is kept.
+  // Feature/passage pruning (L0/L1): walk a placed module polyline and detect its inline features
+  // (circles / zig-zag rosettes). In a module each feature is a small closed loop: the path
+  // arrives at a junction, loops around, and returns to (nearly) the same junction, then carries
+  // on along the connecting passage. A feature therefore (a) closes back onto a recent point and
+  // (b) encloses real area (a circle ~90 mm^2), while a passage just travels through and encloses
+  // nothing. Keep a feature only if a valid hole sits inside it; otherwise drop the loop and keep
+  // the junction once, so the passage bridges straight through with no stub left pointing at the
+  // removed circle — the diagonal runs to the end uninterrupted. Removing the feature here (before
+  // routing) also stops the connect step from ever routing a travel out to it.
   //
-  // Detector geometry validated against a hand-cleaned reference (LATO-M1354 LIV01): with these
-  // constants 98% of removed points matched the manual cleanup at ~90% recall of the circle
-  // excursions. Key discriminator: the path must RETURN within RETURN_TOL of a recent point
-  // (a genuine come-back) after sticking out at least MIN_PERP and >= CHORD_RATIO x the return
-  // gap — a lollipop, not the mainline zig-zag (which never returns near its start).
+  // Geometry: run on module-resolution polylines (~3 mm segments), inline loops close ~exactly
+  // (chord ~0) with a circle radius ~6 mm. The enclosed-area test is the discriminator — it
+  // separates a real circle from the fine zig-zag texture, which loop detection alone cannot.
   function pruneFeaturesByHoles(points, validCenters, tolerance) {
     if (!Array.isArray(points) || points.length < 6) return points;
-    const RETURN_TOL = 4.5;   // mm — how close the excursion must come back to a departure point
-    const WINDOW = 14;        // how many recent kept points to look back through for the return
-    const MIN_PTS = 6;        // minimum points in a balloon
-    const MAX_EXT = 48;       // mm — a feature is compact; the mainline over 14 pts is not
-    const MIN_PERP = 14;      // mm — the balloon must reach this far off the departure->return chord
-    const CHORD_RATIO = 4;    // reach off the chord must be >= this x the return gap (true lollipop)
+    const LOOP_TOL = 4;      // mm — a loop closes when it returns within this of a recent kept point
+    const WINDOW = 32;       // points to look back through for the closure (module loops ~13-24 pts)
+    const MIN_PTS = 6;       // minimum points in a feature loop
+    const MIN_AREA = 40;     // mm^2 — a feature encloses real area; a passage / texture wiggle ~0
+    const MAX_EXT = 45;      // mm — a feature is compact
     const centers = Array.isArray(validCenters) ? validCenters : [];
     const holeTol = Math.max(0, tolerance || 0);
+    const featureHasHole = (loop) => {
+      let cx = 0, cy = 0;
+      for (const q of loop) { cx += q.x; cy += q.y; }
+      cx /= loop.length; cy /= loop.length;
+      const centroid = { x: cx, y: cy };
+      let reach = 0;
+      for (const q of loop) { const d = distance(centroid, q); if (d > reach) reach = d; }
+      return centers.some((hole) =>
+        pointInPolygon(hole, loop) || distance(centroid, hole) <= reach + holeTol);
+    };
+    // A standalone closed feature polyline (a whole circle / zig-zag rosette that starts and ends
+    // on the same point — e.g. the L1 rosettes) is one feature of any size: keep it whole if a hole
+    // sits inside, otherwise drop it whole. This also covers rosettes longer than the loop WINDOW.
+    if (distance(points[0], points[points.length - 1]) <= LOOP_TOL) {
+      let area2 = 0;
+      for (let s = 0; s < points.length; s += 1) {
+        const a = points[s], b = points[(s + 1) % points.length];
+        area2 += a.x * b.y - b.x * a.y;
+      }
+      if (Math.abs(area2) / 2 >= MIN_AREA) {
+        return featureHasHole(points) ? points : [];
+      }
+    }
     const out = []; // { x, y, prot } — prot marks points of a kept (on-hole) feature
     let i = 0;
     while (i < points.length) {
@@ -3332,35 +3355,28 @@
       for (let s = out.length - 2; s >= Math.max(0, out.length - WINDOW); s -= 1) {
         if (out[s].prot) continue;
         const d = distance(out[s], p);
-        if (d <= RETURN_TOL && d < bestD) { bestD = d; found = s; }
+        if (d <= LOOP_TOL && d < bestD) { bestD = d; found = s; }
       }
       if (found >= 0 && out.length - found >= MIN_PTS) {
         const span = out.slice(found).concat([{ x: p.x, y: p.y }]);
-        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity, cx = 0, cy = 0;
+        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
         for (const q of span) {
           if (q.x < minX) minX = q.x; if (q.x > maxX) maxX = q.x;
           if (q.y < minY) minY = q.y; if (q.y > maxY) maxY = q.y;
-          cx += q.x; cy += q.y;
         }
-        cx /= span.length; cy /= span.length;
-        const d0 = span[0], d1 = span[span.length - 1];
-        const dx = d1.x - d0.x, dy = d1.y - d0.y, dl = Math.hypot(dx, dy) || 1;
-        let perp = 0;
-        for (const q of span) {
-          const pe = Math.abs((q.x - d0.x) * dy - (q.y - d0.y) * dx) / dl;
-          if (pe > perp) perp = pe;
+        let area2 = 0;
+        for (let s = 0; s < span.length; s += 1) {
+          const a = span[s], b = span[(s + 1) % span.length];
+          area2 += a.x * b.y - b.x * a.y;
         }
-        const isBalloon = Math.max(maxX - minX, maxY - minY) <= MAX_EXT
-          && perp >= MIN_PERP && perp >= CHORD_RATIO * bestD;
-        if (isBalloon) {
-          const centroid = { x: cx, y: cy };
-          const nearHole = centers.some((hole) =>
-            pointInPolygon(hole, span) || distance(centroid, hole) <= (perp / 2 + holeTol));
-          if (nearHole) {
+        const area = Math.abs(area2) / 2;
+        const isFeature = area >= MIN_AREA && Math.max(maxX - minX, maxY - minY) <= MAX_EXT;
+        if (isFeature) {
+          if (featureHasHole(span)) {
             for (let s = found; s < out.length; s += 1) out[s].prot = true;
             out.push({ x: p.x, y: p.y, prot: true });
           } else {
-            out.length = found + 1; // drop the balloon (circle + spur); bridge departure -> next
+            out.length = found + 1; // drop the loop; keep the junction so the passage bridges through
           }
           i += 1;
           continue;
