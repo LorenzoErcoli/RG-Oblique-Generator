@@ -3372,53 +3372,63 @@
     return output;
   }
 
-  // Post-connect cleanup for the technical layers (L0/L1): the connect step joins the pruned
-  // module instances and, at the junctions where a feature was removed, can leave a single point
-  // jutting out and coming straight back (an out-and-back "spike" / stub). Remove those isolated
-  // spikes: a point B where its neighbours A and C almost coincide (the path returns to where it
-  // left) while B sticks out, AND B sits in a sparse area (a travel/passage, not a stitched
-  // feature). The density guard protects kept circles/rosettes — their points are packed far above
-  // the threshold — and bridging A->C spans < SPIKE_CHORD mm so no gap is introduced.
-  function removeIsolatedSpikes(connected) {
+  // Post-connect cleanup for the technical layers (L0/L1): the connect step joins the pruned module
+  // instances and, at the junctions where a feature was removed, leaves the thread going out and
+  // coming straight back (an out-and-back stub). Remove those stubs, scale-independently: scan for a
+  // sub-path that departs a point and returns within RETURN_TOL of it within a bounded path length,
+  // juts out at least MIN_REACH, and stays clear of every valid hole (no point of it within
+  // HOLE_GUARD of a hole). Kept circles/rosettes sit ON holes, so the hole guard leaves them fully
+  // intact; a stub lives out on a travel, away from any hole, so it is dropped and the departure
+  // point bridges the < RETURN_TOL gap — no interruption. Works at any module scale (the previous
+  // density test only recognised stubs on coarse ~5 mm output and missed fine ~1.5 mm output).
+  function removeIsolatedSpikes(connected, validCenters) {
     const polys = connected && connected.polylines;
     if (!Array.isArray(polys) || !polys.length) return;
-    const SPIKE_CHORD = 3, MIN_JUT = 3, MAX_DENSITY = 6, CELL = 8, MAX_PASSES = 4;
-    const grid = new Map();
-    const key = (x, y) => `${Math.round(x / CELL)},${Math.round(y / CELL)}`;
-    polys.forEach((pl) => pl.points.forEach((p) => {
-      const k = key(p.x, p.y);
-      if (!grid.has(k)) grid.set(k, []);
-      grid.get(k).push(p);
-    }));
-    const density = (p) => {
-      let c = 0;
-      const gx = Math.round(p.x / CELL), gy = Math.round(p.y / CELL);
+    const centers = Array.isArray(validCenters) ? validCenters : [];
+    const RETURN_TOL = 3, PATH_MIN = 4, PATH_MAX = 45, MIN_REACH = 3, HOLE_GUARD = 12, HCELL = 12;
+    const hg = new Map();
+    const hk = (x, y) => `${Math.round(x / HCELL)},${Math.round(y / HCELL)}`;
+    centers.forEach((h) => {
+      const k = hk(h.x, h.y);
+      if (!hg.has(k)) hg.set(k, []);
+      hg.get(k).push(h);
+    });
+    const nearHole = (p) => {
+      const gx = Math.round(p.x / HCELL), gy = Math.round(p.y / HCELL);
       for (let dx = -1; dx <= 1; dx += 1) for (let dy = -1; dy <= 1; dy += 1) {
-        const arr = grid.get(`${gx + dx},${gy + dy}`);
-        if (arr) for (const q of arr) if (distance(p, q) < CELL) c += 1;
+        const arr = hg.get(`${gx + dx},${gy + dy}`);
+        if (arr) for (const h of arr) if (distance(p, h) < HOLE_GUARD) return true;
       }
-      return c;
+      return false;
     };
     polys.forEach((pl) => {
-      let cur = pl.points;
-      for (let pass = 0; pass < MAX_PASSES; pass += 1) {
-        if (cur.length < 3) break;
-        const next = [cur[0]];
-        let changed = false;
-        for (let i = 1; i < cur.length - 1; i += 1) {
-          const A = next[next.length - 1], B = cur[i], C = cur[i + 1];
-          if (distance(A, B) > MIN_JUT && distance(B, C) > MIN_JUT
-            && distance(A, C) < SPIKE_CHORD && density(B) <= MAX_DENSITY) {
-            changed = true; // drop the jutting spike B; A -> C bridges the tiny gap
-          } else {
-            next.push(B);
+      const P = pl.points;
+      if (P.length < 4) return;
+      const cum = [0];
+      for (let k = 1; k < P.length; k += 1) cum[k] = cum[k - 1] + distance(P[k - 1], P[k]);
+      const keep = new Array(P.length).fill(true);
+      let a = 0;
+      while (a < P.length) {
+        if (!keep[a]) { a += 1; continue; }
+        let jumped = false;
+        for (let b = a + 2; b < P.length; b += 1) {
+          const plen = cum[b] - cum[a];
+          if (plen < PATH_MIN) continue;
+          if (plen > PATH_MAX) break;
+          if (distance(P[a], P[b]) < RETURN_TOL) {
+            let reach = 0, anyNear = false;
+            for (let k = a; k <= b; k += 1) {
+              const d = distance(P[a], P[k]);
+              if (d > reach) reach = d;
+              if (nearHole(P[k])) anyNear = true;
+            }
+            if (reach < MIN_REACH) continue;
+            if (!anyNear) { for (let k = a + 1; k <= b; k += 1) keep[k] = false; a = b; jumped = true; break; }
           }
         }
-        next.push(cur[cur.length - 1]);
-        cur = next;
-        if (!changed) break;
+        if (!jumped) a += 1;
       }
-      pl.points = cur;
+      pl.points = P.filter((_, i) => keep[i]);
     });
   }
 
@@ -5842,7 +5852,7 @@
         ? connectLayerContinuity(level0Polys, routingBounds, "level0", placementRoutingOptions)
         : connectTechnicalDiagonals(level0Polys, "level0");
       if (state.params.enableExclusionAreas) routeAroundVoids(connectedLevel0, placementBounds.exclusions, state.params.minimumTravelStitchLength || 3);
-      if (holesEnabled && state.params.pruneFeaturesWithoutHoles) removeIsolatedSpikes(connectedLevel0);
+      if (holesEnabled && state.params.pruneFeaturesWithoutHoles) removeIsolatedSpikes(connectedLevel0, laserExport.validCenters);
     }
     const level1HoleFiltered = !holesEnabled ? rawLevel1
       : state.params.pruneFeaturesWithoutHoles
@@ -5877,7 +5887,7 @@
       ? connectLayerContinuity(level1.polylines, routingBounds, "level1", placementRoutingOptions)
       : connectTechnicalDiagonals(level1.polylines, "level1");
     if (state.params.enableExclusionAreas) routeAroundVoids(connectedLevel1, placementBounds.exclusions, state.params.minimumTravelStitchLength || 3);
-    if (holesEnabled && state.params.pruneFeaturesWithoutHoles) removeIsolatedSpikes(connectedLevel1);
+    if (holesEnabled && state.params.pruneFeaturesWithoutHoles) removeIsolatedSpikes(connectedLevel1, laserExport.validCenters);
     const connectedLevel2 = connectLayerContinuity(level2.polylines, routingBounds, "level2", {
       forceBorderRouting: true,
       preserveContinuousPerimeterRouting: true,
