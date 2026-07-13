@@ -4142,7 +4142,9 @@
           !(segMaxX < v.minX || segMinX > v.maxX || segMaxY < v.minY || segMinY > v.maxY) &&
           segmentCrossesPolygon(a, b, v.boundary.points));
         if (hit) {
-          const around = resampleTravelPath(polygonPerimeterRoute(a, b, hit.boundary).points, s);
+          // Uniform spacing so the route hugging the void border matches the other border passes
+          // (~s mm) instead of inheriting the void contour's dense 0.5-0.7 mm vertices.
+          const around = resampleUniform(polygonPerimeterRoute(a, b, hit.boundary).points, s);
           for (let k = 1; k < around.length; k += 1) out.push(around[k]);
         } else {
           out.push(b);
@@ -4865,6 +4867,46 @@
       }
     }
     return result.filter((point, index, items) => index === 0 || !samePoint(point, items[index - 1]));
+  }
+
+  // Uniform arc-length resample: walk the path and emit a point every `spacing` mm, preserving the
+  // exact first and last points. Unlike resampleTravelPath (which only SUBDIVIDES long segments and
+  // keeps every original vertex), this also MERGES vertices packed closer than `spacing` — needed
+  // when a route follows a densely-sampled contour (e.g. a void border) so it does not inherit that
+  // contour's 0.5-0.7 mm point spacing.
+  function resampleUniform(points, spacing) {
+    if (!Array.isArray(points) || points.length < 2) return Array.isArray(points) ? points.slice() : [];
+    const s = Math.max(0.1, spacing);
+    const out = [{ x: points[0].x, y: points[0].y }];
+    let cursor = { x: points[0].x, y: points[0].y };
+    let idx = 1;
+    let distToNext = distance(cursor, points[idx]);
+    let need = s;
+    let guard = 0;
+    const guardMax = points.length * 4 + Math.ceil(pathLength(points) / s) + 16;
+    while (idx < points.length && guard++ < guardMax) {
+      if (distToNext >= need) {
+        const t = need / distToNext;
+        cursor = { x: cursor.x + (points[idx].x - cursor.x) * t, y: cursor.y + (points[idx].y - cursor.y) * t };
+        out.push(cursor);
+        distToNext = distance(cursor, points[idx]);
+        need = s;
+      } else {
+        need -= distToNext;
+        cursor = points[idx];
+        idx += 1;
+        if (idx < points.length) distToNext = distance(cursor, points[idx]);
+      }
+    }
+    const lastPt = points[points.length - 1];
+    if (!samePoint(out[out.length - 1], lastPt)) out.push({ x: lastPt.x, y: lastPt.y });
+    return out;
+  }
+
+  function pathLength(points) {
+    let total = 0;
+    for (let i = 1; i < points.length; i += 1) total += distance(points[i - 1], points[i]);
+    return total;
   }
 
   function travelStitchStats(points) {
