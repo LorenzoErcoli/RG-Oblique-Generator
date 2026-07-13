@@ -3301,26 +3301,24 @@
     return { ...last(points) };
   }
 
-  // Feature/passage pruning (L0/L1): walk a placed module polyline and detect its inline features
-  // (circles / zig-zag rosettes). In a module each feature is a small closed loop: the path
-  // arrives at a junction, loops around, and returns to (nearly) the same junction, then carries
-  // on along the connecting passage. A feature therefore (a) closes back onto a recent point and
-  // (b) encloses real area (a circle ~90 mm^2), while a passage just travels through and encloses
-  // nothing. Keep a feature only if a valid hole sits inside it; otherwise drop the loop and keep
-  // the junction once, so the passage bridges straight through with no stub left pointing at the
-  // removed circle — the diagonal runs to the end uninterrupted. Removing the feature here (before
-  // routing) also stops the connect step from ever routing a travel out to it.
+  // Feature/passage pruning (L0/L1): walk a placed module polyline and detect its features
+  // (circles / zig-zag rosettes). In a module a feature is a closed loop — the path arrives at a
+  // junction, loops around, and returns to (nearly) the same point — whether that loop is inline on
+  // a longer path (L0's continuous diagonal) or is its own standalone polyline (an L1 rosette). A
+  // passage just travels through and never closes back on itself. When a loop closes, keep it only
+  // if a valid hole sits inside; otherwise collapse it to the junction so the passage bridges
+  // straight through and the diagonal runs to the end uninterrupted, with no stub left pointing at
+  // the removed circle. Removing the feature here (before routing) also stops the connect step from
+  // routing a travel out to it.
   //
-  // Geometry: run on module-resolution polylines (~3 mm segments), inline loops close ~exactly
-  // (chord ~0) with a circle radius ~6 mm. The enclosed-area test is the discriminator — it
-  // separates a real circle from the fine zig-zag texture, which loop detection alone cannot.
+  // The closure search runs all the way back (capped for safety), so a rosette of any length is
+  // caught, and there is no enclosed-area gate — at module resolution a self-closing loop is always
+  // a real feature (passages do not close), so an area threshold only risked missing small circles.
   function pruneFeaturesByHoles(points, validCenters, tolerance) {
-    if (!Array.isArray(points) || points.length < 6) return points;
-    const LOOP_TOL = 4;      // mm — a loop closes when it returns within this of a recent kept point
-    const WINDOW = 32;       // points to look back through for the closure (module loops ~13-24 pts)
-    const MIN_PTS = 6;       // minimum points in a feature loop
-    const MIN_AREA = 40;     // mm^2 — a feature encloses real area; a passage / texture wiggle ~0
-    const MAX_EXT = 45;      // mm — a feature is compact
+    if (!Array.isArray(points) || points.length < 4) return points;
+    const LOOP_TOL = 1.0;    // mm — a loop closes when it returns this close to an earlier kept point
+    const BACK_CAP = 160;    // cap the back-search so a pathologically long polyline stays O(n*cap)
+    const MIN_REACH = 2.5;   // mm — ignore degenerate micro-loops (real circles/rosettes reach past this)
     const centers = Array.isArray(validCenters) ? validCenters : [];
     const holeTol = Math.max(0, tolerance || 0);
     const featureHasHole = (loop) => {
@@ -3333,57 +3331,34 @@
       return centers.some((hole) =>
         pointInPolygon(hole, loop) || distance(centroid, hole) <= reach + holeTol);
     };
-    // A standalone closed feature polyline (a whole circle / zig-zag rosette that starts and ends
-    // on the same point — e.g. the L1 rosettes) is one feature of any size: keep it whole if a hole
-    // sits inside, otherwise drop it whole. This also covers rosettes longer than the loop WINDOW.
-    if (distance(points[0], points[points.length - 1]) <= LOOP_TOL) {
-      let area2 = 0;
-      for (let s = 0; s < points.length; s += 1) {
-        const a = points[s], b = points[(s + 1) % points.length];
-        area2 += a.x * b.y - b.x * a.y;
-      }
-      if (Math.abs(area2) / 2 >= MIN_AREA) {
-        return featureHasHole(points) ? points : [];
-      }
-    }
     const out = []; // { x, y, prot } — prot marks points of a kept (on-hole) feature
-    let i = 0;
-    while (i < points.length) {
-      const p = points[i];
+    for (let k = 0; k < points.length; k += 1) {
+      const p = points[k];
       let found = -1;
-      let bestD = Infinity;
-      for (let s = out.length - 2; s >= Math.max(0, out.length - WINDOW); s -= 1) {
-        if (out[s].prot) continue;
-        const d = distance(out[s], p);
-        if (d <= LOOP_TOL && d < bestD) { bestD = d; found = s; }
+      for (let s = out.length - 2; s >= Math.max(0, out.length - BACK_CAP); s -= 1) {
+        if (!out[s].prot && distance(out[s], p) <= LOOP_TOL) { found = s; break; }
       }
-      if (found >= 0 && out.length - found >= MIN_PTS) {
+      if (found >= 0 && out.length - found + 1 >= 4) {
         const span = out.slice(found).concat([{ x: p.x, y: p.y }]);
-        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-        for (const q of span) {
-          if (q.x < minX) minX = q.x; if (q.x > maxX) maxX = q.x;
-          if (q.y < minY) minY = q.y; if (q.y > maxY) maxY = q.y;
-        }
-        let area2 = 0;
-        for (let s = 0; s < span.length; s += 1) {
-          const a = span[s], b = span[(s + 1) % span.length];
-          area2 += a.x * b.y - b.x * a.y;
-        }
-        const area = Math.abs(area2) / 2;
-        const isFeature = area >= MIN_AREA && Math.max(maxX - minX, maxY - minY) <= MAX_EXT;
-        if (isFeature) {
+        let cx = 0, cy = 0;
+        for (const q of span) { cx += q.x; cy += q.y; }
+        cx /= span.length; cy /= span.length;
+        let reach = 0;
+        for (const q of span) { const d = distance({ x: cx, y: cy }, q); if (d > reach) reach = d; }
+        if (reach >= MIN_REACH) {
           if (featureHasHole(span)) {
             for (let s = found; s < out.length; s += 1) out[s].prot = true;
             out.push({ x: p.x, y: p.y, prot: true });
           } else {
-            out.length = found + 1; // drop the loop; keep the junction so the passage bridges through
+            let hasProtected = false;
+            for (let s = found; s < out.length; s += 1) { if (out[s].prot) { hasProtected = true; break; } }
+            if (hasProtected) out.push({ x: p.x, y: p.y, prot: false }); // don't collapse over a kept feature
+            else out.length = found + 1; // drop the loop; keep the junction so the passage bridges through
           }
-          i += 1;
           continue;
         }
       }
       out.push({ x: p.x, y: p.y, prot: false });
-      i += 1;
     }
     return out.map((o) => ({ x: o.x, y: o.y }));
   }
