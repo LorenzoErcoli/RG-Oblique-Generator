@@ -3384,11 +3384,11 @@
   // intact; a stub lives out on a travel, away from any hole, so it is dropped and the departure
   // point bridges the < RETURN_TOL gap — no interruption. Works at any module scale (the previous
   // density test only recognised stubs on coarse ~5 mm output and missed fine ~1.5 mm output).
-  function removeIsolatedSpikes(connected, validCenters) {
+  function removeIsolatedSpikes(connected, validCenters, returnTolOverride) {
     const polys = connected && connected.polylines;
     if (!Array.isArray(polys) || !polys.length) return;
     const centers = Array.isArray(validCenters) ? validCenters : [];
-    const RETURN_TOL = 3, PATH_MIN = 4, PATH_MAX = 45, MIN_REACH = 3, HOLE_GUARD = 12, HCELL = 12;
+    const RETURN_TOL = returnTolOverride || 3, PATH_MIN = 4, PATH_MAX = 45, MIN_REACH = 3, HOLE_GUARD = 12, HCELL = 12;
     const hg = new Map();
     const hk = (x, y) => `${Math.round(x / HCELL)},${Math.round(y / HCELL)}`;
     centers.forEach((h) => {
@@ -5947,6 +5947,11 @@
         ? connectLayerContinuity(level05Polys, routingBounds, "level1", placementRoutingOptions)
         : connectTechnicalDiagonals(level05Polys, "level1");
       if (state.params.enableExclusionAreas) routeAroundVoids(connectedLevel05, placementBounds.exclusions, state.params.minimumTravelStitchLength || 3);
+      // Level 0.5 draws no circles, so every tall lead-in stub ("becuccio") that used to reach a
+      // rosette is useless here. Remove ALL out-and-back excursions (empty hole list -> no hole
+      // guard) so only the through-passage of the fixing topstitch survives; the passage's own
+      // gentle waviness (well under a lead-in's reach) is kept.
+      removeIsolatedSpikes(connectedLevel05, []);
       const stitch05 = Math.max(1, state.params.level05StitchLength || 3);
       connectedLevel05.polylines.forEach((pl) => { pl.points = resampleUniform(pl.points, stitch05); pl.layer = "level05"; });
     }
