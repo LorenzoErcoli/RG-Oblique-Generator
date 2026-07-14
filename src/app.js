@@ -6684,8 +6684,8 @@
       clone.setAttribute("viewBox", `${round(b.x)} ${round(b.y)} ${round(b.width)} ${round(b.height)}`);
     }
     if (svgKind === "completo") {
-      // One production file: Level 0/1/2 + laser holes as separate groups, no travel/debug/anchors/satin.
-      const keepIds = new Set(["level0", "level1", "level2", "holes"]);
+      // One production file: Level 0/0.5/1/2 + laser holes as separate groups, no travel/debug/anchors/satin.
+      const keepIds = new Set(["level0", "level05", "level1", "level2", "holes"]);
       Array.from(clone.children).forEach((child) => {
         const id = child.getAttribute?.("id") || "";
         if (!keepIds.has(id)) child.remove();
