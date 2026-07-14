@@ -63,7 +63,7 @@
       <aside class="panel easy-panel">
         <header>
           <h1>RG Oblique</h1>
-          <p>Modalità semplice · <span style="opacity:.6">v36</span></p>
+          <p>Modalità semplice · <span style="opacity:.6">v37</span></p>
         </header>
 
         <section>
@@ -81,6 +81,9 @@
           <p class="easy-hint">Assegna i colori del cartamodello ai tagli. Se non assegni un colore valgono i rientri a margine. Se dai a "Piazzamento e fissaggio" lo stesso colore del Pattern, questi seguono il perimetro come il pattern (passaggi continui tra le diagonali).</p>
           <label class="inline"><input data-param="pruneFeaturesWithoutHoles" type="checkbox" /> Cerchi/zig-zag solo dove c'è il foro (tieni le passate)</label>
           <p class="easy-hint">Piazzamento/fissaggio: dove manca il foro rimuove il cerchio (L0) / lo zig-zag (L1) ma mantiene le passate che corrono sotto il pattern.</p>
+          <label class="inline"><input data-param="enableLevel05" type="checkbox" /> Impuntura di fissaggio prima dei cerchi (Livello 0.5)</label>
+          <label>Lunghezza punto impuntura (mm)<input data-param="level05StitchLength" type="number" step="0.5" min="1" /></label>
+          <p class="easy-hint">Passaggio di fissaggio a punto dritto lungo le diagonali, prima del Livello 1 (tolte tutte le rosette, restano solo le passate), con punti a ~3mm.</p>
           <label>Tolleranza foro dal perimetro (mm)<input data-param="holePerimeterToleranceMm" type="number" step="0.5" min="-20" value="2" /></label>
           <p class="easy-hint">Positiva: il foro resta se è completo o sporge al massimo di questa distanza. Negativa: tiene il foro solo se è almeno questa distanza DENTRO il perimetro — toglie i fori troppo vicini al bordo anche se non lo toccano.</p>
           <label class="inline"><input data-param="enableExclusionAreas" type="checkbox" /> Aree di esclusione interne (forme dentro = zone vuote)</label>
@@ -184,6 +187,8 @@
         autoFillDiagonals: true,
         autoModulesPerDiagonal: true,
         enableLevel0: true,
+        enableLevel05: false,
+        level05StitchLength: 3,
         enableHolesLayer: true,
         level0Mode: "module",
         enableZigZagBorder: false,
@@ -210,12 +215,12 @@
         placementTopOffset: 0, placementRightOffset: 0, placementBottomOffset: 0, placementLeftOffset: 0
       };
       window.RG_LAYER_OVERRIDES = {
-        level0: true, level1: true, level2: true, holes: true,
+        level0: true, level05: true, level1: true, level2: true, holes: true,
         travel: false, boundary: false, satin: false, borderPreview: false,
         anchors: false, nodes: false, debugCleanup: false
       };
     </script>
-    <script src="src/app.js?v=20260713-easy36"></script>
+    <script src="src/app.js?v=20260713-easy37"></script>
     <script>
       // Glue: un unico "rientro fori" pilota gli 8 offset (fori laser + piazzamento + fissaggio)
       // in modo uniforme su tutti e 4 i lati, così condividono lo stesso rettangolo di taglio.

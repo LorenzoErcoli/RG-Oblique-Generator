@@ -85,6 +85,8 @@
     rowShiftY: 0,
     rotation: 0,
     enableLevel0: true,
+    enableLevel05: false,
+    level05StitchLength: 3,
     enableHolesLayer: true,
     level0Mode: "module",
     level0ClipMode: "keep_module_if_intersects",
@@ -183,6 +185,7 @@
 
   const defaultLayers = {
     level0: true,
+    level05: true,
     level1: true,
     level2: true,
     holes: true,
@@ -5085,6 +5088,7 @@
 
   function colorForLayer(layer) {
     if (layer === "level0") return "#005f27";
+    if (layer === "level05") return "#e07a00";
     if (layer === "level2") return "#1c6f68";
     if (layer === "holes") return "#9d9100";
     return "#c51722";
@@ -5930,6 +5934,22 @@
       : connectTechnicalDiagonals(level1.polylines, "level1");
     if (state.params.enableExclusionAreas) routeAroundVoids(connectedLevel1, placementBounds.exclusions, state.params.minimumTravelStitchLength || 3);
     if (holesEnabled && state.params.pruneFeaturesWithoutHoles) removeIsolatedSpikes(connectedLevel1, laserExport.validCenters);
+    // Level 0.5: a plain running-stitch fixing pass that anchors the fabric BEFORE the Level 1
+    // rosettes. Built from the same fixing module but with EVERY feature removed (prune with no
+    // holes -> only the connecting passes survive), then resampled to a longer, uniform stitch
+    // (~3 mm) so it reads as a normal topstitch rather than the dense zig-zag.
+    let connectedLevel05 = { polylines: [], report: emptyReport(), routingPolylines: [], intraDiagonalPolylines: [] };
+    if (state.params.enableLevel05) {
+      const level05Pruned = pruneLayerFeaturesByHoles(rawLevel1, [], state.params.holeMatchTolerance || 0.5);
+      const level05Clip = applyModuleClipMode(level05Pruned, placementBounds, state.params.level1ClipMode || "strict_clip", "level1", emptyReport());
+      const level05Polys = state.params.enableExclusionAreas ? subtractExclusions(level05Clip.polylines, placementBounds.exclusions) : level05Clip.polylines;
+      connectedLevel05 = placementFollowsPattern
+        ? connectLayerContinuity(level05Polys, routingBounds, "level1", placementRoutingOptions)
+        : connectTechnicalDiagonals(level05Polys, "level1");
+      if (state.params.enableExclusionAreas) routeAroundVoids(connectedLevel05, placementBounds.exclusions, state.params.minimumTravelStitchLength || 3);
+      const stitch05 = Math.max(1, state.params.level05StitchLength || 3);
+      connectedLevel05.polylines.forEach((pl) => { pl.points = resampleUniform(pl.points, stitch05); pl.layer = "level05"; });
+    }
     const connectedLevel2 = connectLayerContinuity(level2.polylines, routingBounds, "level2", {
       forceBorderRouting: true,
       preserveContinuousPerimeterRouting: true,
@@ -5945,12 +5965,14 @@
     // connected output of Level 0/1/2 (removes sub-mm points from modules and their junctions).
     const minStitch = Math.max(0, state.params.minimumSegmentLength || 0);
     enforceMinimumStitchOnLayer(connectedLevel0, minStitch);
+    enforceMinimumStitchOnLayer(connectedLevel05, minStitch);
     enforceMinimumStitchOnLayer(connectedLevel1, minStitch);
     enforceMinimumStitchOnLayer(connectedLevel2, minStitch);
     // Thread-discharge sequence (panel-border lock + travel) at entry AND exit of each run.
     if (state.params.startLockEnabled) {
       const lockStitch = state.params.startLockStitchMm || 3;
       addStartEndLock(connectedLevel0, patternBounds, lockStitch);
+      addStartEndLock(connectedLevel05, patternBounds, lockStitch);
       addStartEndLock(connectedLevel1, patternBounds, lockStitch);
       addStartEndLock(connectedLevel2, patternBounds, lockStitch);
     }
@@ -5960,6 +5982,7 @@
     mergeReports(report, level2.report);
     mergeReports(report, level2CutReconnect.report);
     mergeReports(report, connectedLevel0.report);
+    mergeReports(report, connectedLevel05.report);
     mergeReports(report, connectedLevel1.report);
     mergeReports(report, connectedLevel2.report);
     mergeReports(report, laserReport);
@@ -5975,10 +5998,12 @@
 
     const intraDiagonalPolylines = [];
     appendItems(intraDiagonalPolylines, connectedLevel0.intraDiagonalPolylines);
+    appendItems(intraDiagonalPolylines, connectedLevel05.intraDiagonalPolylines);
     appendItems(intraDiagonalPolylines, connectedLevel1.intraDiagonalPolylines);
     appendItems(intraDiagonalPolylines, connectedLevel2.intraDiagonalPolylines);
     const borderRoutingPolylines = [];
     appendItems(borderRoutingPolylines, connectedLevel0.routingPolylines);
+    appendItems(borderRoutingPolylines, connectedLevel05.routingPolylines);
     appendItems(borderRoutingPolylines, connectedLevel1.routingPolylines);
     appendItems(borderRoutingPolylines, connectedLevel2.routingPolylines);
     const travelPolylines = [];
@@ -5995,6 +6020,7 @@
     if (!coverageMaskOnly) {
       preview.appendChild(buildBoundaryLayer(patternBounds, bounds, { laser: laserBounds, placement: placementBounds, satin: displaySatinBounds, cord: displayCordBounds }));
       preview.appendChild(buildPolylineGroup("level0", connectedLevel0.polylines, "layer-level0"));
+      preview.appendChild(buildPolylineGroup("level05", connectedLevel05.polylines, "layer-level05"));
       preview.appendChild(buildPolylineGroup("level1", connectedLevel1.polylines, "layer-level1"));
       preview.appendChild(buildTravelLayer(travelPolylines));
     }
@@ -6394,6 +6420,7 @@
     };
     const groupNames = {
       level0: "Level_0",
+      level05: "Level_0_5",
       level1: "Level_1",
       level2: "Level_2",
       travel: "Perimeter_Routing",
@@ -6452,7 +6479,7 @@
   }
 
   function exportBlockId(groupId, childIndex, chunkIndex, chunkCount) {
-    const base = groupId === "level0" || groupId === "level1" || groupId === "level2"
+    const base = groupId === "level0" || groupId === "level05" || groupId === "level1" || groupId === "level2"
       ? `Diagonal_${String(childIndex + 1).padStart(3, "0")}`
       : `${groupId || "Block"}_${String(childIndex + 1).padStart(3, "0")}`;
     return chunkCount > 1 ? `${base}_part_${String(chunkIndex + 1).padStart(3, "0")}` : base;

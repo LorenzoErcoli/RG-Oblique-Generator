@@ -453,6 +453,12 @@ section > label:has(input[type="checkbox"]) {
   stroke: #ff00aa;
 }
 
+.layer-level05 polyline,
+.layer-level05 line,
+.layer-level05 path {
+  stroke: #e07a00;
+}
+
 .layer-level1 polyline,
 .layer-level1 line,
 .layer-level1 path {
