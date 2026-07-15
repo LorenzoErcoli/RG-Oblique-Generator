@@ -63,7 +63,7 @@
       <aside class="panel easy-panel">
         <header>
           <h1>RG Oblique</h1>
-          <p>Modalità semplice · <span style="opacity:.6">v43</span></p>
+          <p>Modalità semplice · <span style="opacity:.6">v44</span></p>
         </header>
 
         <section>
@@ -112,6 +112,20 @@
           <label class="inline"><input data-param="startLockEnabled" type="checkbox" /> Partenza dal bordo (scarico filo)</label>
           <label>Punto partenza/ingresso (mm)<input data-param="startLockStitchMm" type="number" step="0.5" min="0.5" /></label>
           <p class="easy-hint">Ogni tratto di L0/L1/L2 parte dal bordo con 3 punti verticali (ancoraggio filo), poi entra con un passaggio a questa lunghezza, poi inizia il ricamo.</p>
+        </details>
+
+        <!-- TEMPORANEO: taratura pulizia contorni (rimuovere quando trovati i default) -->
+        <details class="easy-acc" id="easy-cleanup-tuning">
+          <summary>Pulizia contorni (taratura temporanea)</summary>
+          <label>Modalità pulizia<select data-param="cleanupMode"><option>strict_clip</option><option>snap_to_edge</option><option>trim_and_close</option></select></label>
+          <label>Tolleranza pulizia (mm)<input data-param="cleanupTolerance" type="number" step="0.05" /></label>
+          <label>Distanza snap al bordo (mm)<input data-param="snapToEdgeDistance" type="number" step="0.1" /></label>
+          <label>Tolleranza chiusura perimetro (mm)<input data-param="perimeterCloseTolerance" type="number" step="0.01" /></label>
+          <label>Tolleranza corsia perimetro (mm)<input data-param="perimeterLaneTolerance" type="number" step="0.1" /></label>
+          <label>Larghezza corsia perimetro (mm)<input data-param="perimeterLaneWidth" type="number" step="0.5" /></label>
+          <label>Distanza minima di svolta (mm)<input data-param="minimumTurnDistanceMm" type="number" step="0.1" /></label>
+          <label>Tolleranza semplificazione passaggi (mm)<input data-param="travelSimplificationToleranceMm" type="number" step="0.1" /></label>
+          <p class="easy-hint">Pannello temporaneo per trovare i valori giusti dei contorni/aree vuote. "snap_to_edge" sposta i punti sul bordo (può creare linee smagliate) — di norma "strict_clip" è più fedele. Una volta trovati i valori buoni li fissiamo di default e togliamo questo pannello.</p>
         </details>
 
         <section>
@@ -223,7 +237,7 @@
         anchors: false, nodes: false, debugCleanup: false
       };
     </script>
-    <script src="src/app.js?v=20260713-easy43"></script>
+    <script src="src/app.js?v=20260713-easy44"></script>
     <script>
       // Glue: un unico "rientro fori" pilota gli 8 offset (fori laser + piazzamento + fissaggio)
       // in modo uniforme su tutti e 4 i lati, così condividono lo stesso rettangolo di taglio.
