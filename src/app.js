@@ -93,6 +93,7 @@
     level1ClipMode: "keep_module_if_intersects",
     pruneFeaturesWithoutHoles: false,
     trimDiagonalsToHoles: false,
+    routeAroundVoidsEnabled: true,
     holePerimeterToleranceMm: 2,
     enableExclusionAreas: true,
     startLockEnabled: false,
@@ -4167,6 +4168,7 @@
   // Any travel segment that would cross an empty area is rerouted AROUND the void perimeter
   // (shorter side), so passages hug the border of the void instead of jumping across the centre.
   function routeAroundVoids(connected, exclusions, stitch) {
+    if (state.params.routeAroundVoidsEnabled === false) return; // leave crossings cut instead of hugging the void border
     if (!connected || !Array.isArray(connected.polylines) || !Array.isArray(exclusions) || !exclusions.length) return;
     const s = Math.max(0.5, stitch || 3);
     const voids = exclusions.map((exclusion) => {
