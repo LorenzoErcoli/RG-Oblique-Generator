@@ -92,6 +92,7 @@
     level0ClipMode: "keep_module_if_intersects",
     level1ClipMode: "keep_module_if_intersects",
     pruneFeaturesWithoutHoles: false,
+    trimDiagonalsToHoles: false,
     holePerimeterToleranceMm: 2,
     enableExclusionAreas: true,
     startLockEnabled: false,
@@ -3375,6 +3376,47 @@
     return output;
   }
 
+  // Trim each diagonal (L0/L1) to the span of its holes: keep the modules from the first hole-
+  // bearing position to the last, and drop the empty ends. A diagonal is only worth stitching where
+  // there is a hole to mark/lock — so if the start or end of a diagonal has no holes the fixing does
+  // not run there, and a diagonal with no holes at all is dropped entirely. The middle stays
+  // continuous (no-hole modules between two holes are kept, so the pass is not interrupted).
+  function trimDiagonalEndsWithoutHoles(polylines, validCenters) {
+    if (!Array.isArray(polylines) || !polylines.length) return polylines;
+    const centers = Array.isArray(validCenters) ? validCenters : [];
+    if (!centers.length) return []; // holes on but none valid -> nothing to anchor
+    const TOL = 2; // mm — a module "has a hole" when a valid hole sits within its bounds + this
+    const byDiag = new Map();
+    polylines.forEach((pl) => {
+      const d = pl.diagonal ?? 0;
+      if (!byDiag.has(d)) byDiag.set(d, []);
+      byDiag.get(d).push(pl);
+    });
+    const kept = [];
+    byDiag.forEach((items) => {
+      const byIndex = new Map();
+      items.forEach((pl) => {
+        const i = pl.index ?? 0;
+        if (!byIndex.has(i)) byIndex.set(i, []);
+        byIndex.get(i).push(pl);
+      });
+      const indices = Array.from(byIndex.keys()).sort((a, b) => a - b);
+      const hasHole = (i) => {
+        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        byIndex.get(i).forEach((pl) => pl.points.forEach((p) => {
+          if (p.x < minX) minX = p.x; if (p.x > maxX) maxX = p.x;
+          if (p.y < minY) minY = p.y; if (p.y > maxY) maxY = p.y;
+        }));
+        return centers.some((h) => h.x >= minX - TOL && h.x <= maxX + TOL && h.y >= minY - TOL && h.y <= maxY + TOL);
+      };
+      let first = null, lastHole = null;
+      indices.forEach((i) => { if (hasHole(i)) { if (first === null) first = i; lastHole = i; } });
+      if (first === null) return; // diagonal with no holes -> dropped
+      indices.forEach((i) => { if (i >= first && i <= lastHole) byIndex.get(i).forEach((pl) => kept.push(pl)); });
+    });
+    return kept;
+  }
+
   // Post-connect cleanup for the technical layers (L0/L1): the connect step joins the pruned module
   // instances and, at the junctions where a feature was removed, leaves the thread going out and
   // coming straight back (an out-and-back stub). Remove those stubs, scale-independently: scan for a
@@ -4643,7 +4685,9 @@
     }
     if (bounds.type === "polygon") {
       const route = polygonPerimeterRoute(exitPoint, entryPoint, bounds, options);
-      let points = resampleTravelPath(route.points, state.params.minimumTravelStitchLength);
+      // Uniform spacing so a curved DXF/SVG perimeter does not force the border pass to inherit the
+      // outline's dense vertices — the stitch length is respected on curves too.
+      let points = resampleUniform(route.points, state.params.minimumTravelStitchLength);
       if (mode === "Optimized" && !options.forceBorder && state.params.allowInternalShortcuts) {
         const straight = resampleTravelPath([exitPoint, entryPoint], state.params.minimumTravelStitchLength);
         if (polylineLength(straight) < polylineLength(points)) points = straight;
@@ -4656,7 +4700,7 @@
     const counterClockwise = perimeterWalk(a, b, bounds, false);
     const laneRoute = choosePerimeterCandidate(clockwise, counterClockwise, bounds, options);
     const basePoints = [exitPoint, ...laneRoute.points, entryPoint].filter((point, index, items) => index === 0 || !samePoint(point, items[index - 1]));
-    let points = resampleTravelPath(basePoints, state.params.minimumTravelStitchLength);
+    let points = resampleUniform(basePoints, state.params.minimumTravelStitchLength);
     if (mode === "Optimized" && !options.forceBorder && state.params.allowInternalShortcuts) {
       const straight = resampleTravelPath([exitPoint, entryPoint], state.params.minimumTravelStitchLength);
       if (polylineLength(straight) < polylineLength(points)) points = straight;
@@ -5891,7 +5935,10 @@
         : state.params.pruneFeaturesWithoutHoles
           ? pruneLayerFeaturesByHoles(rawLevel0, laserExport.validCenters, state.params.holeMatchTolerance || 0.5)
           : filterPolylinesByValidHoles(rawLevel0, laserExport.validIds, laserExport.validCenters, "level0", laserReport);
-      const level0 = applyModuleClipMode(level0HoleFiltered, placementBounds, state.params.level0ClipMode || "strict_clip", "level0", emptyReport());
+      const level0Trimmed = holesEnabled && state.params.trimDiagonalsToHoles
+        ? trimDiagonalEndsWithoutHoles(level0HoleFiltered, laserExport.validCenters)
+        : level0HoleFiltered;
+      const level0 = applyModuleClipMode(level0Trimmed, placementBounds, state.params.level0ClipMode || "strict_clip", "level0", emptyReport());
       level0CleanupReport = level0.report;
       const level0Polys = state.params.enableExclusionAreas ? subtractExclusions(level0.polylines, placementBounds.exclusions) : level0.polylines;
       connectedLevel0 = placementFollowsPattern
@@ -5904,7 +5951,10 @@
       : state.params.pruneFeaturesWithoutHoles
         ? pruneLayerFeaturesByHoles(rawLevel1, laserExport.validCenters, state.params.holeMatchTolerance || 0.5)
         : filterPolylinesByValidHoles(rawLevel1, laserExport.validIds, laserExport.validCenters, "level1", laserReport);
-    const level1Clip = applyModuleClipMode(level1HoleFiltered, placementBounds, state.params.level1ClipMode || "strict_clip", "level1", emptyReport());
+    const level1Trimmed = holesEnabled && state.params.trimDiagonalsToHoles
+      ? trimDiagonalEndsWithoutHoles(level1HoleFiltered, laserExport.validCenters)
+      : level1HoleFiltered;
+    const level1Clip = applyModuleClipMode(level1Trimmed, placementBounds, state.params.level1ClipMode || "strict_clip", "level1", emptyReport());
     const level1 = { polylines: state.params.enableExclusionAreas ? subtractExclusions(level1Clip.polylines, placementBounds.exclusions) : level1Clip.polylines, report: level1Clip.report };
     const level2Cleanup = cleanupPolylines(rawLevel2, bounds);
     const level2CutReconnect = reconnectCutFragmentsOnBoundary(level2Cleanup.polylines, bounds);

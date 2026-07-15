@@ -99,6 +99,7 @@
           <label>Level 0.5 stitch length mm<input data-param="level05StitchLength" type="number" step="0.5" min="1" value="3" /></label>
           <label><input data-param="enableHolesLayer" type="checkbox" /> Enable laser holes</label>
           <label><input data-param="enableExclusionAreas" type="checkbox" checked /> Enable inner exclusion areas (same-colour shapes = voids)</label>
+          <label><input data-param="trimDiagonalsToHoles" type="checkbox" /> Trim L0/L1 diagonals to their holes (drop empty ends)</label>
           <label>Hole perimeter tolerance mm (negative = drop holes too close to the border)<input data-param="holePerimeterToleranceMm" type="number" step="0.5" value="2" /></label>
           <label>Laser top offset<input data-param="laserTopOffset" type="number" step="0.1" value="60" /></label>
           <label>Laser bottom offset<input data-param="laserBottomOffset" type="number" step="0.1" value="0" /></label>
@@ -286,6 +287,6 @@
         </div>
       </section>
     </main>
-    <script src="src/app.js?v=20260713-full42"></script>
+    <script src="src/app.js?v=20260713-full43"></script>
   </body>
 </html>
