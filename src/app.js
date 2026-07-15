@@ -94,6 +94,7 @@
     pruneFeaturesWithoutHoles: false,
     trimDiagonalsToHoles: false,
     routeAroundVoidsEnabled: true,
+    reconnectVoidBorders: true,
     holePerimeterToleranceMm: 2,
     enableExclusionAreas: true,
     startLockEnabled: false,
@@ -3866,6 +3867,21 @@
     return { polylines: output, report };
   }
 
+  // Give the void (exclusion) borders the SAME treatment as the outer border: after the pattern is
+  // cut at a void, reconnect the cut fragments by routing them along the void perimeter (instead of
+  // leaving loose ends that the connect step later joins with odd straight travels). Each exclusion
+  // is a full polygon boundary, so the existing boundary-reconnect machinery applies as-is.
+  function reconnectVoidCutFragments(polylines, exclusions) {
+    if (!Array.isArray(exclusions) || !exclusions.length) return polylines;
+    let current = polylines;
+    exclusions.forEach((exclusion) => {
+      if (exclusion && Array.isArray(exclusion.points) && exclusion.points.length > 2) {
+        current = reconnectCutFragmentsOnBoundary(current, exclusion).polylines;
+      }
+    });
+    return current;
+  }
+
   function isBoundaryCutPair(a, b, bounds) {
     const tolerance = Math.max(0.2, state.params.perimeterLaneTolerance || 1);
     return distanceToBoundary(a, bounds) <= tolerance && distanceToBoundary(b, bounds) <= tolerance;
@@ -5942,7 +5958,8 @@
         : level0HoleFiltered;
       const level0 = applyModuleClipMode(level0Trimmed, placementBounds, state.params.level0ClipMode || "strict_clip", "level0", emptyReport());
       level0CleanupReport = level0.report;
-      const level0Polys = state.params.enableExclusionAreas ? subtractExclusions(level0.polylines, placementBounds.exclusions) : level0.polylines;
+      const level0Cut = state.params.enableExclusionAreas ? subtractExclusions(level0.polylines, placementBounds.exclusions) : level0.polylines;
+      const level0Polys = state.params.enableExclusionAreas && state.params.reconnectVoidBorders ? reconnectVoidCutFragments(level0Cut, placementBounds.exclusions) : level0Cut;
       connectedLevel0 = placementFollowsPattern
         ? connectLayerContinuity(level0Polys, routingBounds, "level0", placementRoutingOptions)
         : connectTechnicalDiagonals(level0Polys, "level0");
@@ -5957,13 +5974,17 @@
       ? trimDiagonalEndsWithoutHoles(level1HoleFiltered, laserExport.validCenters)
       : level1HoleFiltered;
     const level1Clip = applyModuleClipMode(level1Trimmed, placementBounds, state.params.level1ClipMode || "strict_clip", "level1", emptyReport());
-    const level1 = { polylines: state.params.enableExclusionAreas ? subtractExclusions(level1Clip.polylines, placementBounds.exclusions) : level1Clip.polylines, report: level1Clip.report };
+    const level1Cut = state.params.enableExclusionAreas ? subtractExclusions(level1Clip.polylines, placementBounds.exclusions) : level1Clip.polylines;
+    const level1 = { polylines: state.params.enableExclusionAreas && state.params.reconnectVoidBorders ? reconnectVoidCutFragments(level1Cut, placementBounds.exclusions) : level1Cut, report: level1Clip.report };
     const level2Cleanup = cleanupPolylines(rawLevel2, bounds);
     const level2CutReconnect = reconnectCutFragmentsOnBoundary(level2Cleanup.polylines, bounds);
     // Empty areas inside the pattern: inner contours of the pattern colour cut out the pattern.
-    const level2WithVoids = state.params.enableExclusionAreas
+    let level2WithVoids = state.params.enableExclusionAreas
       ? subtractExclusions(level2CutReconnect.polylines, bounds.exclusions)
       : level2CutReconnect.polylines;
+    if (state.params.enableExclusionAreas && state.params.reconnectVoidBorders) {
+      level2WithVoids = reconnectVoidCutFragments(level2WithVoids, bounds.exclusions);
+    }
     const level2 = { polylines: level2WithVoids, report: level2Cleanup.report };
     let coverageMap = null;
     const needsCoveragePreview = state.params.coverageMaskPreview || state.layers.debugCoverageMask || state.layers.debugCoverageMap || state.layers.debugCoveredTravelOptimizer;
@@ -5994,7 +6015,8 @@
     if (state.params.enableLevel05) {
       const level05Pruned = pruneLayerFeaturesByHoles(rawLevel1, [], state.params.holeMatchTolerance || 0.5);
       const level05Clip = applyModuleClipMode(level05Pruned, placementBounds, state.params.level1ClipMode || "strict_clip", "level1", emptyReport());
-      const level05Polys = state.params.enableExclusionAreas ? subtractExclusions(level05Clip.polylines, placementBounds.exclusions) : level05Clip.polylines;
+      const level05Cut = state.params.enableExclusionAreas ? subtractExclusions(level05Clip.polylines, placementBounds.exclusions) : level05Clip.polylines;
+      const level05Polys = state.params.enableExclusionAreas && state.params.reconnectVoidBorders ? reconnectVoidCutFragments(level05Cut, placementBounds.exclusions) : level05Cut;
       connectedLevel05 = placementFollowsPattern
         ? connectLayerContinuity(level05Polys, routingBounds, "level1", placementRoutingOptions)
         : connectTechnicalDiagonals(level05Polys, "level1");

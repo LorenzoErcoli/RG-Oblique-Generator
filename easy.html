@@ -63,7 +63,7 @@
       <aside class="panel easy-panel">
         <header>
           <h1>RG Oblique</h1>
-          <p>Modalità semplice · <span style="opacity:.6">v45</span></p>
+          <p>Modalità semplice · <span style="opacity:.6">v46</span></p>
         </header>
 
         <section>
@@ -125,6 +125,7 @@
           <label>Larghezza corsia perimetro (mm)<input data-param="perimeterLaneWidth" type="number" step="0.5" /></label>
           <label>Distanza minima di svolta (mm)<input data-param="minimumTurnDistanceMm" type="number" step="0.1" /></label>
           <label>Tolleranza semplificazione passaggi (mm)<input data-param="travelSimplificationToleranceMm" type="number" step="0.1" /></label>
+          <label class="inline"><input data-param="reconnectVoidBorders" type="checkbox" /> Pulisci i bordi delle aree vuote come il bordo esterno</label>
           <label class="inline"><input data-param="routeAroundVoidsEnabled" type="checkbox" /> Gira i passaggi attorno alle aree vuote</label>
           <p class="easy-hint">ATTENZIONE: i parametri qui sopra agiscono sul contorno ESTERNO, non sui bordi delle aree vuote (quelli usano un'altra logica). Per le aree vuote conta l'interruttore "Gira i passaggi attorno": se ATTIVO i passaggi che attraverserebbero il vuoto vengono spostati lungo il suo bordo; se lo SPEGNI vengono solo tagliati (niente punti spostati sul bordo del vuoto). "snap_to_edge" invece riguarda solo il bordo esterno.</p>
         </details>
@@ -238,7 +239,7 @@
         anchors: false, nodes: false, debugCleanup: false
       };
     </script>
-    <script src="src/app.js?v=20260713-easy45"></script>
+    <script src="src/app.js?v=20260713-easy46"></script>
     <script>
       // Glue: un unico "rientro fori" pilota gli 8 offset (fori laser + piazzamento + fissaggio)
       // in modo uniforme su tutti e 4 i lati, così condividono lo stesso rettangolo di taglio.
