@@ -93,7 +93,7 @@
     level1ClipMode: "keep_module_if_intersects",
     pruneFeaturesWithoutHoles: false,
     trimDiagonalsToHoles: false,
-    routeAroundVoidsEnabled: true,
+    routeAroundVoidsEnabled: false,
     reconnectVoidBorders: true,
     holePerimeterToleranceMm: 2,
     enableExclusionAreas: true,
@@ -3867,22 +3867,61 @@
     return { polylines: output, report };
   }
 
-  // Clean the embroidery against void (exclusion) borders with the EXACT same pipeline and
-  // parameters as the outer border: clip each polyline to the OUTSIDE of the void (cleanupPolylines
-  // with keepOutside — same cleanupMode / snap / tolerance / minimum-stitch) and then reconnect the
-  // cut fragments along the void perimeter (reconnectCutFragmentsOnBoundary — same cut-border stitch
-  // routing). This replaces the cruder subtractExclusions so a void edge comes out as clean as the
-  // panel edge. Each exclusion is a full polygon boundary, so the machinery applies as-is.
+  // Clip the embroidery to the OUTSIDE of each void, with the same clip/params as the outer border
+  // (cleanupPolylines with keepOutside — cleanupMode / snap / tolerance / minimum-stitch). Pure clip:
+  // where a line enters a void a point is placed, everything inside is dropped, and a point is placed
+  // where it exits — no routing along the void border.
   function cleanupVoids(polylines, exclusions) {
     if (!Array.isArray(exclusions) || !exclusions.length) return polylines;
     let current = polylines;
     exclusions.forEach((exclusion) => {
       if (exclusion && Array.isArray(exclusion.points) && exclusion.points.length > 2) {
         current = cleanupPolylines(current, exclusion, { keepOutside: true }).polylines;
-        current = reconnectCutFragmentsOnBoundary(current, exclusion).polylines;
       }
     });
     return current;
+  }
+
+  // Final pass: clip an already-connected layer to the OUTSIDE of every void — cutting the fill AND
+  // the travels/connectors that the connect step may have drawn across a void. Exactly the requested
+  // logic: on entering a void insert the crossing point and end the run; on exiting, insert the
+  // crossing point and start a new run. Nothing is left inside a void and no point is moved onto its
+  // border. (Travels that hug the border come from routeAroundVoids, which is off by default.)
+  function clipConnectedAgainstVoids(connected, exclusions) {
+    if (!connected) return;
+    const voids = (exclusions || []).filter((e) => e && Array.isArray(e.points) && e.points.length > 2);
+    if (!voids.length) return;
+    const clipList = (list) => {
+      if (!Array.isArray(list)) return list;
+      const out = [];
+      list.forEach((pl) => {
+        if (!pl || !Array.isArray(pl.points) || pl.points.length < 2) return;
+        let frags = [pl.points];
+        voids.forEach((v) => {
+          const next = [];
+          frags.forEach((f) => {
+            let cur = [];
+            const close = () => { if (cur.length >= 2) next.push(cur); cur = []; };
+            for (let i = 0; i < f.length - 1; i += 1) {
+              const segs = clipSegmentToPolygon(f[i], f[i + 1], v.points, true);
+              if (!segs.length) { close(); continue; } // segment fully inside the void
+              segs.forEach((s) => {
+                if (cur.length && samePoint(last(cur), s.a)) cur.push(s.b);
+                else { close(); cur = [{ x: s.a.x, y: s.a.y }, { x: s.b.x, y: s.b.y }]; }
+              });
+              if (!samePoint(segs[segs.length - 1].b, f[i + 1])) close(); // path entered the void here
+            }
+            close();
+          });
+          frags = next;
+        });
+        frags.forEach((f) => { if (f.length >= 2) out.push({ ...pl, points: f }); });
+      });
+      return out;
+    };
+    connected.polylines = clipList(connected.polylines);
+    connected.routingPolylines = clipList(connected.routingPolylines);
+    connected.intraDiagonalPolylines = clipList(connected.intraDiagonalPolylines);
   }
 
   function isBoundaryCutPair(a, b, bounds) {
@@ -5983,6 +6022,7 @@
         ? connectLayerContinuity(level0Polys, routingBounds, "level0", placementRoutingOptions)
         : connectTechnicalDiagonals(level0Polys, "level0");
       if (state.params.enableExclusionAreas) routeAroundVoids(connectedLevel0, placementBounds.exclusions, state.params.minimumTravelStitchLength || 3);
+      if (state.params.enableExclusionAreas) clipConnectedAgainstVoids(connectedLevel0, placementBounds.exclusions);
       if (holesEnabled && state.params.pruneFeaturesWithoutHoles) removeIsolatedSpikes(connectedLevel0, laserExport.validCenters);
     }
     const level1HoleFiltered = !holesEnabled ? rawLevel1
@@ -6025,6 +6065,7 @@
       ? connectLayerContinuity(level1.polylines, routingBounds, "level1", placementRoutingOptions)
       : connectTechnicalDiagonals(level1.polylines, "level1");
     if (state.params.enableExclusionAreas) routeAroundVoids(connectedLevel1, placementBounds.exclusions, state.params.minimumTravelStitchLength || 3);
+    if (state.params.enableExclusionAreas) clipConnectedAgainstVoids(connectedLevel1, placementBounds.exclusions);
     if (holesEnabled && state.params.pruneFeaturesWithoutHoles) removeIsolatedSpikes(connectedLevel1, laserExport.validCenters);
     // Level 0.5: a plain running-stitch fixing pass that anchors the fabric BEFORE the Level 1
     // rosettes. Built from the same fixing module but with EVERY feature removed (prune with no
@@ -6041,6 +6082,7 @@
         ? connectLayerContinuity(level05Polys, routingBounds, "level1", placementRoutingOptions)
         : connectTechnicalDiagonals(level05Polys, "level1");
       if (state.params.enableExclusionAreas) routeAroundVoids(connectedLevel05, placementBounds.exclusions, state.params.minimumTravelStitchLength || 3);
+      if (state.params.enableExclusionAreas) clipConnectedAgainstVoids(connectedLevel05, placementBounds.exclusions);
       // Level 0.5 draws no circles, so every tall lead-in stub ("becuccio") that used to reach a
       // rosette is useless here. Remove ALL out-and-back excursions (empty hole list -> no hole
       // guard) so only the through-passage of the fixing topstitch survives; the passage's own
@@ -6059,6 +6101,7 @@
     // Reroute Level 2 travels that cross an empty area around the void perimeter.
     if (state.params.enableExclusionAreas) {
       routeAroundVoids(connectedLevel2, bounds.exclusions, state.params.minimumTravelStitchLength || 3);
+      clipConnectedAgainstVoids(connectedLevel2, bounds.exclusions);
     }
     // Final minimum-stitch pass: no segment shorter than the global minimum survives in the
     // connected output of Level 0/1/2 (removes sub-mm points from modules and their junctions).

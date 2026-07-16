@@ -63,7 +63,7 @@
       <aside class="panel easy-panel">
         <header>
           <h1>RG Oblique</h1>
-          <p>Modalità semplice · <span style="opacity:.6">v47</span></p>
+          <p>Modalità semplice · <span style="opacity:.6">v48</span></p>
         </header>
 
         <section>
@@ -127,7 +127,7 @@
           <label>Tolleranza semplificazione passaggi (mm)<input data-param="travelSimplificationToleranceMm" type="number" step="0.1" /></label>
           <label class="inline"><input data-param="reconnectVoidBorders" type="checkbox" /> Pulisci i bordi delle aree vuote come il bordo esterno</label>
           <label class="inline"><input data-param="routeAroundVoidsEnabled" type="checkbox" /> Gira i passaggi attorno alle aree vuote</label>
-          <p class="easy-hint">Con "Pulisci i bordi delle aree vuote come il bordo esterno" ATTIVO, i parametri qui sopra (modalità, tolleranza, snap, punto minimo) agiscono ANCHE sui bordi delle aree vuote, con la stessa logica del bordo esterno. Se lo spegni, i vuoti usano il vecchio taglio semplice. "Gira i passaggi attorno" riguarda i passaggi che attraverserebbero il vuoto.</p>
+          <p class="easy-hint">Il ricamo (riempimento E passaggi) viene tagliato netto sul bordo di ogni area vuota: dove una linea entra nel vuoto si mette un punto, si eliminano i punti dentro, e si rimette un punto all'uscita — niente giri o punti spostati sul bordo. "Gira i passaggi attorno" (di norma SPENTO): se lo accendi, i passaggi che attraverserebbero il vuoto vengono fatti girare lungo il suo bordo invece di essere tagliati. I parametri qui sopra (modalità/tolleranza/snap/punto minimo) valgono anche per il taglio dei vuoti.</p>
         </details>
 
         <section>
@@ -239,7 +239,7 @@
         anchors: false, nodes: false, debugCleanup: false
       };
     </script>
-    <script src="src/app.js?v=20260713-easy47"></script>
+    <script src="src/app.js?v=20260713-easy48"></script>
     <script>
       // Glue: un unico "rientro fori" pilota gli 8 offset (fori laser + piazzamento + fissaggio)
       // in modo uniforme su tutti e 4 i lati, così condividono lo stesso rettangolo di taglio.
