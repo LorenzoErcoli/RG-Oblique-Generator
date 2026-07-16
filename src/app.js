@@ -93,7 +93,7 @@
     level1ClipMode: "keep_module_if_intersects",
     pruneFeaturesWithoutHoles: false,
     trimDiagonalsToHoles: false,
-    routeAroundVoidsEnabled: false,
+    routeAroundVoidsEnabled: true,
     reconnectVoidBorders: true,
     holePerimeterToleranceMm: 2,
     enableExclusionAreas: true,
@@ -3919,9 +3919,10 @@
       });
       return out;
     };
+    // Only the stitched geometry is clipped. Travels/connectors are NOT clipped here: cutting a long
+    // travel that spans the panel would leave long stubs pointing at the void — travels avoid the
+    // void via routeAroundVoids instead.
     connected.polylines = clipList(connected.polylines);
-    connected.routingPolylines = clipList(connected.routingPolylines);
-    connected.intraDiagonalPolylines = clipList(connected.intraDiagonalPolylines);
   }
 
   function isBoundaryCutPair(a, b, bounds) {
