@@ -3867,15 +3867,18 @@
     return { polylines: output, report };
   }
 
-  // Give the void (exclusion) borders the SAME treatment as the outer border: after the pattern is
-  // cut at a void, reconnect the cut fragments by routing them along the void perimeter (instead of
-  // leaving loose ends that the connect step later joins with odd straight travels). Each exclusion
-  // is a full polygon boundary, so the existing boundary-reconnect machinery applies as-is.
-  function reconnectVoidCutFragments(polylines, exclusions) {
+  // Clean the embroidery against void (exclusion) borders with the EXACT same pipeline and
+  // parameters as the outer border: clip each polyline to the OUTSIDE of the void (cleanupPolylines
+  // with keepOutside — same cleanupMode / snap / tolerance / minimum-stitch) and then reconnect the
+  // cut fragments along the void perimeter (reconnectCutFragmentsOnBoundary — same cut-border stitch
+  // routing). This replaces the cruder subtractExclusions so a void edge comes out as clean as the
+  // panel edge. Each exclusion is a full polygon boundary, so the machinery applies as-is.
+  function cleanupVoids(polylines, exclusions) {
     if (!Array.isArray(exclusions) || !exclusions.length) return polylines;
     let current = polylines;
     exclusions.forEach((exclusion) => {
       if (exclusion && Array.isArray(exclusion.points) && exclusion.points.length > 2) {
+        current = cleanupPolylines(current, exclusion, { keepOutside: true }).polylines;
         current = reconnectCutFragmentsOnBoundary(current, exclusion).polylines;
       }
     });
@@ -3906,12 +3909,15 @@
 
   function cleanupPolyline(polyline, bounds, options = {}) {
     const p = state.params;
+    const keepOutside = !!options.keepOutside; // true => keep the part OUTSIDE bounds (a void)
     const report = emptyReport();
     const output = [];
     const adjusted = polyline.points.map((point) => {
       report.originalPoints += 1;
       report.debug.originalPoints.push(point);
-      if (isInside(point, bounds, p.cleanupTolerance)) return point;
+      const inBounds = isInside(point, bounds, keepOutside ? 0 : p.cleanupTolerance);
+      const keep = keepOutside ? !inBounds : inBounds;
+      if (keep) return point;
       if (p.cleanupMode !== "strict_clip") {
         const snapped = snapToRect(point, bounds, p.snapToEdgeDistance);
         if (snapped) {
@@ -3930,7 +3936,7 @@
     for (let index = 0; index < adjusted.length - 1; index += 1) {
       const a = adjusted[index];
       const b = adjusted[index + 1];
-      const clippedSegments = clipSegmentToBoundary(a, b, bounds);
+      const clippedSegments = clipSegmentToBoundary(a, b, bounds, keepOutside);
       if (!clippedSegments.length) {
         report.removedSegments += 1;
         report.debug.removedSegments.push([a, b]);
@@ -4320,12 +4326,21 @@
     return bestDistance <= maxDistance ? best : null;
   }
 
-  function clipSegmentToBoundary(a, b, bounds) {
+  function clipSegmentToBoundary(a, b, bounds, keepOutside = false) {
     if (bounds.type !== "polygon") {
+      if (keepOutside) return clipSegmentToPolygon(a, b, rectToPolygon(bounds), true);
       const clipped = clipSegmentToRect(a, b, bounds);
       return clipped ? [clipped] : [];
     }
-    return clipSegmentToPolygon(a, b, bounds.points);
+    return clipSegmentToPolygon(a, b, bounds.points, keepOutside);
+  }
+
+  function rectToPolygon(bounds) {
+    return [
+      { x: bounds.minX, y: bounds.minY }, { x: bounds.maxX, y: bounds.minY },
+      { x: bounds.maxX, y: bounds.maxY }, { x: bounds.minX, y: bounds.maxY },
+      { x: bounds.minX, y: bounds.minY }
+    ];
   }
 
   function clipSegmentToRect(a, b, bounds) {
@@ -4358,7 +4373,10 @@
     };
   }
 
-  function clipSegmentToPolygon(a, b, polygon) {
+  // keepOutside=false keeps the part INSIDE the polygon (outer boundary); keepOutside=true keeps
+  // the part OUTSIDE it (a void / exclusion), so a void can be clipped with the exact same code.
+  function clipSegmentToPolygon(a, b, polygon, keepOutside = false) {
+    const wanted = (point) => keepOutside ? !pointInPolygon(point, polygon) : pointInPolygon(point, polygon);
     const intersections = [{ t: 0, point: a }, { t: 1, point: b }];
     for (let index = 0; index < polygon.length - 1; index += 1) {
       const hit = segmentIntersectionParam(a, b, polygon[index], polygon[index + 1]);
@@ -4373,9 +4391,9 @@
       const end = unique[index + 1];
       const midT = (start.t + end.t) / 2;
       const mid = interpolate(a, b, midT);
-      if (pointInPolygon(mid, polygon)) segments.push({ a: start.point, b: end.point });
+      if (wanted(mid)) segments.push({ a: start.point, b: end.point });
     }
-    if (!segments.length && pointInPolygon(a, polygon) && pointInPolygon(b, polygon)) return [{ a, b }];
+    if (!segments.length && wanted(a) && wanted(b)) return [{ a, b }];
     return segments;
   }
 
@@ -5958,8 +5976,9 @@
         : level0HoleFiltered;
       const level0 = applyModuleClipMode(level0Trimmed, placementBounds, state.params.level0ClipMode || "strict_clip", "level0", emptyReport());
       level0CleanupReport = level0.report;
-      const level0Cut = state.params.enableExclusionAreas ? subtractExclusions(level0.polylines, placementBounds.exclusions) : level0.polylines;
-      const level0Polys = state.params.enableExclusionAreas && state.params.reconnectVoidBorders ? reconnectVoidCutFragments(level0Cut, placementBounds.exclusions) : level0Cut;
+      const level0Polys = !state.params.enableExclusionAreas ? level0.polylines
+        : state.params.reconnectVoidBorders ? cleanupVoids(level0.polylines, placementBounds.exclusions)
+        : subtractExclusions(level0.polylines, placementBounds.exclusions);
       connectedLevel0 = placementFollowsPattern
         ? connectLayerContinuity(level0Polys, routingBounds, "level0", placementRoutingOptions)
         : connectTechnicalDiagonals(level0Polys, "level0");
@@ -5974,17 +5993,17 @@
       ? trimDiagonalEndsWithoutHoles(level1HoleFiltered, laserExport.validCenters)
       : level1HoleFiltered;
     const level1Clip = applyModuleClipMode(level1Trimmed, placementBounds, state.params.level1ClipMode || "strict_clip", "level1", emptyReport());
-    const level1Cut = state.params.enableExclusionAreas ? subtractExclusions(level1Clip.polylines, placementBounds.exclusions) : level1Clip.polylines;
-    const level1 = { polylines: state.params.enableExclusionAreas && state.params.reconnectVoidBorders ? reconnectVoidCutFragments(level1Cut, placementBounds.exclusions) : level1Cut, report: level1Clip.report };
+    const level1Polys = !state.params.enableExclusionAreas ? level1Clip.polylines
+      : state.params.reconnectVoidBorders ? cleanupVoids(level1Clip.polylines, placementBounds.exclusions)
+      : subtractExclusions(level1Clip.polylines, placementBounds.exclusions);
+    const level1 = { polylines: level1Polys, report: level1Clip.report };
     const level2Cleanup = cleanupPolylines(rawLevel2, bounds);
     const level2CutReconnect = reconnectCutFragmentsOnBoundary(level2Cleanup.polylines, bounds);
-    // Empty areas inside the pattern: inner contours of the pattern colour cut out the pattern.
-    let level2WithVoids = state.params.enableExclusionAreas
-      ? subtractExclusions(level2CutReconnect.polylines, bounds.exclusions)
-      : level2CutReconnect.polylines;
-    if (state.params.enableExclusionAreas && state.params.reconnectVoidBorders) {
-      level2WithVoids = reconnectVoidCutFragments(level2WithVoids, bounds.exclusions);
-    }
+    // Empty areas inside the pattern: inner contours of the pattern colour cut out the pattern,
+    // cleaned with the same pipeline as the outer border (cleanupVoids) unless the toggle is off.
+    const level2WithVoids = !state.params.enableExclusionAreas ? level2CutReconnect.polylines
+      : state.params.reconnectVoidBorders ? cleanupVoids(level2CutReconnect.polylines, bounds.exclusions)
+      : subtractExclusions(level2CutReconnect.polylines, bounds.exclusions);
     const level2 = { polylines: level2WithVoids, report: level2Cleanup.report };
     let coverageMap = null;
     const needsCoveragePreview = state.params.coverageMaskPreview || state.layers.debugCoverageMask || state.layers.debugCoverageMap || state.layers.debugCoveredTravelOptimizer;
@@ -6015,8 +6034,9 @@
     if (state.params.enableLevel05) {
       const level05Pruned = pruneLayerFeaturesByHoles(rawLevel1, [], state.params.holeMatchTolerance || 0.5);
       const level05Clip = applyModuleClipMode(level05Pruned, placementBounds, state.params.level1ClipMode || "strict_clip", "level1", emptyReport());
-      const level05Cut = state.params.enableExclusionAreas ? subtractExclusions(level05Clip.polylines, placementBounds.exclusions) : level05Clip.polylines;
-      const level05Polys = state.params.enableExclusionAreas && state.params.reconnectVoidBorders ? reconnectVoidCutFragments(level05Cut, placementBounds.exclusions) : level05Cut;
+      const level05Polys = !state.params.enableExclusionAreas ? level05Clip.polylines
+        : state.params.reconnectVoidBorders ? cleanupVoids(level05Clip.polylines, placementBounds.exclusions)
+        : subtractExclusions(level05Clip.polylines, placementBounds.exclusions);
       connectedLevel05 = placementFollowsPattern
         ? connectLayerContinuity(level05Polys, routingBounds, "level1", placementRoutingOptions)
         : connectTechnicalDiagonals(level05Polys, "level1");
