@@ -93,7 +93,7 @@
     level1ClipMode: "keep_module_if_intersects",
     pruneFeaturesWithoutHoles: false,
     trimDiagonalsToHoles: false,
-    routeAroundVoidsEnabled: true,
+    routeAroundVoidsEnabled: false,
     reconnectVoidBorders: false,
     holePerimeterToleranceMm: 2,
     enableExclusionAreas: true,
