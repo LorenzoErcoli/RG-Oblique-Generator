@@ -94,7 +94,7 @@
     pruneFeaturesWithoutHoles: false,
     trimDiagonalsToHoles: false,
     routeAroundVoidsEnabled: true,
-    reconnectVoidBorders: true,
+    reconnectVoidBorders: false,
     holePerimeterToleranceMm: 2,
     enableExclusionAreas: true,
     startLockEnabled: false,
@@ -6023,7 +6023,6 @@
         ? connectLayerContinuity(level0Polys, routingBounds, "level0", placementRoutingOptions)
         : connectTechnicalDiagonals(level0Polys, "level0");
       if (state.params.enableExclusionAreas) routeAroundVoids(connectedLevel0, placementBounds.exclusions, state.params.minimumTravelStitchLength || 3);
-      if (state.params.enableExclusionAreas) clipConnectedAgainstVoids(connectedLevel0, placementBounds.exclusions);
       if (holesEnabled && state.params.pruneFeaturesWithoutHoles) removeIsolatedSpikes(connectedLevel0, laserExport.validCenters);
     }
     const level1HoleFiltered = !holesEnabled ? rawLevel1
@@ -6066,7 +6065,6 @@
       ? connectLayerContinuity(level1.polylines, routingBounds, "level1", placementRoutingOptions)
       : connectTechnicalDiagonals(level1.polylines, "level1");
     if (state.params.enableExclusionAreas) routeAroundVoids(connectedLevel1, placementBounds.exclusions, state.params.minimumTravelStitchLength || 3);
-    if (state.params.enableExclusionAreas) clipConnectedAgainstVoids(connectedLevel1, placementBounds.exclusions);
     if (holesEnabled && state.params.pruneFeaturesWithoutHoles) removeIsolatedSpikes(connectedLevel1, laserExport.validCenters);
     // Level 0.5: a plain running-stitch fixing pass that anchors the fabric BEFORE the Level 1
     // rosettes. Built from the same fixing module but with EVERY feature removed (prune with no
@@ -6083,7 +6081,6 @@
         ? connectLayerContinuity(level05Polys, routingBounds, "level1", placementRoutingOptions)
         : connectTechnicalDiagonals(level05Polys, "level1");
       if (state.params.enableExclusionAreas) routeAroundVoids(connectedLevel05, placementBounds.exclusions, state.params.minimumTravelStitchLength || 3);
-      if (state.params.enableExclusionAreas) clipConnectedAgainstVoids(connectedLevel05, placementBounds.exclusions);
       // Level 0.5 draws no circles, so every tall lead-in stub ("becuccio") that used to reach a
       // rosette is useless here. Remove ALL out-and-back excursions (empty hole list -> no hole
       // guard) so only the through-passage of the fixing topstitch survives; the passage's own
@@ -6102,7 +6099,6 @@
     // Reroute Level 2 travels that cross an empty area around the void perimeter.
     if (state.params.enableExclusionAreas) {
       routeAroundVoids(connectedLevel2, bounds.exclusions, state.params.minimumTravelStitchLength || 3);
-      clipConnectedAgainstVoids(connectedLevel2, bounds.exclusions);
     }
     // Final minimum-stitch pass: no segment shorter than the global minimum survives in the
     // connected output of Level 0/1/2 (removes sub-mm points from modules and their junctions).
