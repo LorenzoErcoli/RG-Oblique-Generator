@@ -4251,10 +4251,14 @@
           !(segMaxX < v.minX || segMinX > v.maxX || segMaxY < v.minY || segMinY > v.maxY) &&
           segmentCrossesPolygon(a, b, v.boundary.points));
         if (hit) {
-          // Uniform spacing so the route hugging the void border matches the other border passes
-          // (~s mm) instead of inheriting the void contour's dense 0.5-0.7 mm vertices.
-          const around = resampleUniform(polygonPerimeterRoute(a, b, hit.boundary).points, s);
-          for (let k = 1; k < around.length; k += 1) out.push(around[k]);
+          // Reroute a → (void border) → b. Add points ONLY on the void border (the walk between the
+          // two crossing points), resampled to the stitch length; connect a and b to that walk with
+          // single segments. This adds no points off the void border and never touches the pattern's
+          // own points — only the crossing travel is replaced.
+          const route = polygonPerimeterRoute(a, b, hit.boundary).points; // [a, ...border walk, b]
+          const inner = route.length > 2 ? resampleUniform(route.slice(1, route.length - 1), s) : [];
+          for (let k = 0; k < inner.length; k += 1) out.push(inner[k]);
+          out.push(b);
         } else {
           out.push(b);
         }
@@ -4281,7 +4285,8 @@
     const route = perimeterRoute(projectedExit, projectedReentry, bounds, {
       forceBorder: true,
       validateCandidates: true,
-      preferredDirection: null
+      preferredDirection: null,
+      stitchLength: Math.max(0.2, stitchLength || 2)
     });
     if (route.valid === false || !route.points.length) {
       report.cutRoutesFailed += 1;
@@ -4753,19 +4758,24 @@
     return { polylines: output, report, routingPolylines: [], intraDiagonalPolylines };
   }
 
+  // options.stitchLength lets a caller impose its own stitch length (e.g. cut-generated border
+  // routes use cutBorderStitchLength); otherwise the travel stitch length is used. Without this the
+  // route came back already resampled at minimumTravelStitchLength and a LONGER cutBorderStitchLength
+  // had no effect, because the follow-up resample can only subdivide.
   function perimeterRoute(exitPoint, entryPoint, bounds, options = {}) {
     const mode = state.params.travelPathMode || "Border Following";
+    const stitch = Math.max(0.1, options.stitchLength || state.params.minimumTravelStitchLength || 3);
     if (mode === "Straight" && !options.forceBorder && state.params.allowInternalShortcuts) {
-      const points = resampleTravelPath([exitPoint, entryPoint], state.params.minimumTravelStitchLength);
+      const points = resampleTravelPath([exitPoint, entryPoint], stitch);
       return { points, length: polylineLength(points), stitchStats: travelStitchStats(points) };
     }
     if (bounds.type === "polygon") {
       const route = polygonPerimeterRoute(exitPoint, entryPoint, bounds, options);
       // Uniform spacing so a curved DXF/SVG perimeter does not force the border pass to inherit the
       // outline's dense vertices — the stitch length is respected on curves too.
-      let points = resampleUniform(route.points, state.params.minimumTravelStitchLength);
+      let points = resampleUniform(route.points, stitch);
       if (mode === "Optimized" && !options.forceBorder && state.params.allowInternalShortcuts) {
-        const straight = resampleTravelPath([exitPoint, entryPoint], state.params.minimumTravelStitchLength);
+        const straight = resampleTravelPath([exitPoint, entryPoint], stitch);
         if (polylineLength(straight) < polylineLength(points)) points = straight;
       }
       return { points, length: polylineLength(points), perimeterLength: route.length, stitchStats: travelStitchStats(points), direction: route.direction, candidates: route.candidates, valid: route.valid, projectedStart: route.projectedStart, projectedEnd: route.projectedEnd };
@@ -4776,9 +4786,9 @@
     const counterClockwise = perimeterWalk(a, b, bounds, false);
     const laneRoute = choosePerimeterCandidate(clockwise, counterClockwise, bounds, options);
     const basePoints = [exitPoint, ...laneRoute.points, entryPoint].filter((point, index, items) => index === 0 || !samePoint(point, items[index - 1]));
-    let points = resampleUniform(basePoints, state.params.minimumTravelStitchLength);
+    let points = resampleUniform(basePoints, stitch);
     if (mode === "Optimized" && !options.forceBorder && state.params.allowInternalShortcuts) {
-      const straight = resampleTravelPath([exitPoint, entryPoint], state.params.minimumTravelStitchLength);
+      const straight = resampleTravelPath([exitPoint, entryPoint], stitch);
       if (polylineLength(straight) < polylineLength(points)) points = straight;
     }
     return { points, length: polylineLength(points), perimeterLength: laneRoute.length, stitchStats: travelStitchStats(points), direction: laneRoute.direction, candidates: laneRoute.candidates, valid: laneRoute.valid, projectedStart: stripSide(a), projectedEnd: stripSide(b) };
@@ -6188,6 +6198,7 @@
     state.unitReport = buildUnitReport(patternBounds, bounds);
     state.debugSvg = cloneWithoutPreviewOnly(preview);
     renderStats(report);
+    window.__rgLastReport = report; // diagnostics: inspect routing/cut-route counters from the console
     applyStateToControls();
     const moduleCount = state.params.diagonalCount * state.params.modulesPerDiagonal * 2;
     setStatus(`${moduleCount} modules, clean points ${report.finalPoints}, pattern ${round(patternBounds.width)} x ${round(patternBounds.height)} mm`);
